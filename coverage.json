@@ -1,25 +1,59 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T11:46:37.461Z",
+  "generatedAt": "2026-02-26T13:23:24.673Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 1,
+    "total": 5,
     "implemented": 0,
     "items": [
       {
-        "id": "REQ-7",
-        "summary": "Audit the frontend canister actor initialization code (in useActor.ts and any related config files such as canister_ids.json, dfx.json, or environment variable resolution) and fix any mismatch between the deployed backend canister ID and the ID the frontend is using to create the actor, so that the 'Backend actor not available. Please check your connection.' error is resolved and the app connects successfully to the DroneWash Motoko canister.",
+        "id": "REQ-10",
+        "summary": "Audit `frontend/vite.config.ts` to ensure it correctly reads the deployed IC canister ID from `canister_ids.json` (the `ic` network entry for the DroneWash backend canister) and injects it as the environment variable that `useActor.ts` consumes at runtime. Fix any key name mismatch, missing property path (e.g., `canister_ids['dronewash_backend']['ic']`), or incorrect `define` / `import.meta.env` variable name so the production build receives the correct canister ID.",
         "status": "missing",
         "plannedFiles": [
-          "frontend/src/hooks/useActor.ts",
-          "frontend/.env",
-          "frontend/vite.config.ts",
-          "dfx.json",
-          "canister_ids.json"
+          "frontend/vite.config.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-11",
+        "summary": "Audit `frontend/src/hooks/useActor.ts` to verify it reads the canister ID from the correct `import.meta.env` variable (matching what `vite.config.ts` injects) and that the fallback/default value is not overriding the real deployed canister ID. Remove or correct any hardcoded placeholder canister ID or fallback that would cause the actor to target the wrong canister on IC mainnet.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/hooks/useActor.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-12",
+        "summary": "Verify that `canister_ids.json` at the project root contains the correct `ic` network entry for the DroneWash backend canister and that the key name used to look it up in `vite.config.ts` exactly matches the canister name declared in `dfx.json`. Correct any key name discrepancy between `dfx.json`, `canister_ids.json`, and `vite.config.ts`.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/vite.config.ts"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-13",
+        "summary": "Ensure any `.env` or `.env.production` files in the `frontend/` directory do not contain a stale or incorrect canister ID value that would override the dynamically injected value from `vite.config.ts`. Remove or correct any conflicting `VITE_CANISTER_ID` (or equivalent) entries in those files.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/.env.production",
+          "frontend/.env"
+        ],
+        "matchedFiles": []
+      },
+      {
+        "id": "REQ-14",
+        "summary": "After applying all canister ID wiring fixes, ensure the `App.tsx` backend connection error state (the 'Backend actor not available. Please check your connection.' / 'Backend Connection Failed' banner) is no longer triggered on the live IC app. The app should successfully initialize the backend actor and load dashboard data without displaying the connection error screen.",
+        "status": "missing",
+        "plannedFiles": [
+          "frontend/src/App.tsx",
+          "frontend/src/hooks/useActor.ts"
         ],
         "matchedFiles": []
       }

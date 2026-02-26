@@ -1,11 +1,13 @@
 # Specification
 
 ## Summary
-**Goal:** Fix the "Backend Connection Failed" error by correcting the canister ID wiring in the frontend so it successfully connects to the deployed DroneWash Motoko backend canister.
+**Goal:** Fix the frontend/backend canister ID synchronization so the DroneWash QuotePro app on IC mainnet correctly connects to the deployed backend canister.
 
 **Planned changes:**
-- Audit `useActor.ts` and related frontend config files (`canister_ids.json`, `dfx.json`, environment variable resolution) to identify the canister ID mismatch
-- Fix the canister ID used in the frontend actor initialization to match the deployed backend Motoko canister ID
-- Ensure the "Retry Connection" button successfully establishes the connection without requiring a full page reload
+- Audit and fix `frontend/vite.config.ts` to correctly read the backend canister ID from `canister_ids.json` under the `ic` network key, using the exact canister name declared in `dfx.json`, and inject it as the correct `import.meta.env` variable.
+- Audit and fix `frontend/src/hooks/useActor.ts` to read the canister ID from the matching environment variable and remove any hardcoded placeholder or fallback that would override the real deployed canister ID.
+- Verify that the canister name key in `vite.config.ts` matches the name in `dfx.json` and that `canister_ids.json` contains a valid IC mainnet canister ID with no undefined/empty lookups.
+- Remove or correct any stale or incorrect canister ID values in `frontend/.env` or `frontend/.env.production` that could override the dynamically injected value.
+- Ensure the "Backend Connection Failed" error screen no longer appears on IC mainnet after the wiring fixes are applied.
 
-**User-visible outcome:** After login, the "Backend Connection Failed" screen no longer appears and the dashboard loads successfully with data from the backend canister.
+**User-visible outcome:** The app loads correctly on IC mainnet without displaying a backend connection error, and the Dashboard or Login page renders successfully with live data from the backend canister.

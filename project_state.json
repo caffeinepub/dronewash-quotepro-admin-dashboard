@@ -1,16 +1,18 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 7,
-  "summary": "Expense and fund management app with PDF attachment feature. Step 1 (UI button) is complete. Now implementing frontend-only PDF storage using IndexedDB for Quotations Fund transaction rows — includes visual indicator, View/Open button, and download capability. Backend PDF storage approach was abandoned due to repeated build failures.",
+  "projectStateVersion": 13,
+  "summary": "Expense and fund management app with PDF attachment feature. Steps 1-3 (UI button, IndexedDB hook, save/view/download wiring) are complete. Now working on v48 to fix frontend/backend synchronization — auditing useActor.ts, canister_ids.json, vite.config.ts, and .env files so the frontend correctly connects to the deployed DroneWash Motoko canister. V44 is the last known-good fallback if the fix cannot be confirmed.",
   "architectural_notes": [
     "PDF feature is being implemented incrementally in 4 steps to stay within free plan resource limits",
     "No changes to existing categories, funds, or transaction structure — PDF attachment is additive only",
-    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices."
+    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices.",
+    "V44 is the last known-good baseline — will revert to v44 if v48 frontend/backend sync fix cannot be confirmed working"
   ],
   "known_issues": [
     "Build process hits resource limits on large builds under free plan — must use incremental small changes",
     "Backend Motoko PDF storage additions repeatedly fail to build — incremental sub-steps (2.1a, 2.1b, etc.) all hit AI/build errors",
-    "Frontend shows 'Backend actor not available / Backend Connection Failed' — canister ID wiring mismatch between frontend config and deployed Motoko canister"
+    "Frontend shows 'Backend actor not available / Backend Connection Failed' — canister ID wiring mismatch between frontend config and deployed Motoko canister",
+    "V48 deployment broke the app entirely (blank page or full failure) — v44 was last working version"
   ],
   "isFixRequest": true,
   "existing_features": [
@@ -61,6 +63,14 @@
         "REQ-6"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-audit-frontend-src-hooks-useactor-ts-and-all-related-canister-configuration-sources-canister-ids-json-dfx-json-vite-config-ts-and-any-env-env-production-files-to-identify-exactly-which-canister-id-the-frontend-is-resolving-at-runtime-for-the-dronewash-backend-canister-compare-it-against-the-actual-deployed-canister-id-recorded-in-canister-ids-json-ic-network-entry-fix-any-mismatch-in-environment-variable-names-variable-injection-in-vite-config-ts-or-fallback-logic-in-useactor-ts-so-the-frontend-correctly-uses-the-deployed-production-canister-id-the-fix-must-eliminate-the-backend-actor-not-available-please-check-your-connection-backend-connection-failed-error-shown-on-the-live-app",
+      "title": "Audit `frontend/src/hooks/useActor.ts` and all related canister configuration sources (`canister_ids.json`, `dfx.json`, `vite.config.ts`, and any `.env` / `.env.production` files) to identify exactly which canister ID the frontend is resolving at runtime for the DroneWash backend canister. Compare it against the actual deployed canister ID recorded in `canister_ids.json` (ic network entry). Fix any mismatch in environment variable names, variable injection in `vite.config.ts`, or fallback logic in `useActor.ts` so the frontend correctly uses the deployed production canister ID. The fix must eliminate the 'Backend actor not available. Please check your connection.' / 'Backend Connection Failed' error shown on the live app.",
+      "reqIds": [
+        "REQ-9"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
@@ -87,6 +97,54 @@
       "summary": "Audit the frontend canister actor initialization code (in useActor.ts and any related config files such as canister_ids.json, dfx.json, or environment variable resolution) and fix any mismatch between the deployed backend canister ID and the ID the frontend is using to create the actor, so that the 'Backend actor not available. Please check your connection.' error is resolved and the app connects successfully to the DroneWash Motoko canister.",
       "reqIds": [
         "REQ-7"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-7",
+      "summary": "Audit `frontend/src/hooks/useActor.ts` and all related canister configuration files (`canister_ids.json`, `dfx.json`, and any environment variable resolution logic such as `vite.config.ts` or `.env` files) to identify the mismatch between the deployed DroneWash backend canister ID and the ID the frontend is using to instantiate the actor. Fix the wiring so the frontend correctly resolves and uses the deployed canister ID, eliminating the 'Backend Connection Failed / Backend actor not available. Please check your connection.' error shown in the app.",
+      "reqIds": [
+        "REQ-8"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-8",
+      "summary": "Audit `frontend/vite.config.ts` to ensure it correctly reads the deployed IC canister ID from `canister_ids.json` (the `ic` network entry for the DroneWash backend canister) and injects it as the environment variable that `useActor.ts` consumes at runtime. Fix any key name mismatch, missing property path (e.g., `canister_ids['dronewash_backend']['ic']`), or incorrect `define` / `import.meta.env` variable name so the production build receives the correct canister ID.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-9",
+      "summary": "Audit `frontend/src/hooks/useActor.ts` to verify it reads the canister ID from the correct `import.meta.env` variable (matching what `vite.config.ts` injects) and that the fallback/default value is not overriding the real deployed canister ID. Remove or correct any hardcoded placeholder canister ID or fallback that would cause the actor to target the wrong canister on IC mainnet.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-10",
+      "summary": "Verify that `canister_ids.json` at the project root contains the correct `ic` network entry for the DroneWash backend canister and that the key name used to look it up in `vite.config.ts` exactly matches the canister name declared in `dfx.json`. Correct any key name discrepancy between `dfx.json`, `canister_ids.json`, and `vite.config.ts`.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-11",
+      "summary": "Ensure any `.env` or `.env.production` files in the `frontend/` directory do not contain a stale or incorrect canister ID value that would override the dynamically injected value from `vite.config.ts`. Remove or correct any conflicting `VITE_CANISTER_ID` (or equivalent) entries in those files.",
+      "reqIds": [
+        "REQ-13"
+      ],
+      "status": "pending"
+    },
+    {
+      "id": "AR-12",
+      "summary": "After applying all canister ID wiring fixes, ensure the `App.tsx` backend connection error state (the 'Backend actor not available. Please check your connection.' / 'Backend Connection Failed' banner) is no longer triggered on the live IC app. The app should successfully initialize the backend actor and load dashboard data without displaying the connection error screen.",
+      "reqIds": [
+        "REQ-14"
       ],
       "status": "pending"
     }

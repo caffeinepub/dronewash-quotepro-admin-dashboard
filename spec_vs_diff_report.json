@@ -1,13 +1,45 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T11:46:37.458Z",
-  "summary": "The diff only modifies project_state.json, which is a metadata/state tracking file. No changes were made to frontend canister actor initialization code (useActor.ts), canister_ids.json, dfx.json, environment variable configuration, or any other frontend source files that would fix the backend canister ID mismatch described in REQ-7.",
+  "generatedAt": "2026-02-26T13:23:24.669Z",
+  "summary": "The diff shows only a modification to `project_state.json`, which is a metadata/state tracking file. None of the actual source files required by the build request (frontend/vite.config.ts, frontend/src/hooks/useActor.ts, canister_ids.json, dfx.json, frontend/.env, frontend/.env.production, frontend/src/App.tsx) were modified. All five requirements (REQ-10 through REQ-14) remain unimplemented.",
   "missing_requirements": [
     {
-      "id": "REQ-7",
-      "requirement": "Audit and fix the frontend canister actor initialization code (useActor.ts and related config files) so the canister ID used matches the deployed Motoko canister ID, resolving the 'Backend actor not available' error.",
-      "reason": "The diff contains no changes to useActor.ts, canister_ids.json, dfx.json, environment variable files, or any frontend source code. Only project_state.json was modified, which is a metadata file and does not affect runtime behavior.",
+      "id": "REQ-10",
+      "requirement": "Audit and fix frontend/vite.config.ts to correctly read the deployed IC canister ID from canister_ids.json under the ic network key and inject it as the correct environment variable consumed by useActor.ts.",
+      "reason": "No changes to frontend/vite.config.ts are present in the diff. The only modified file is project_state.json.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "id": "REQ-11",
+      "requirement": "Audit frontend/src/hooks/useActor.ts to verify it reads the canister ID from the correct import.meta.env variable and remove any hardcoded placeholder canister ID or incorrect fallback.",
+      "reason": "No changes to frontend/src/hooks/useActor.ts are present in the diff. The only modified file is project_state.json.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "id": "REQ-12",
+      "requirement": "Verify and correct any key name discrepancy between dfx.json, canister_ids.json, and vite.config.ts so that the canister name lookup is consistent and returns a valid IC mainnet canister ID.",
+      "reason": "No changes to canister_ids.json, dfx.json, or frontend/vite.config.ts are present in the diff.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "id": "REQ-13",
+      "requirement": "Ensure .env or .env.production files in frontend/ do not contain stale or incorrect canister ID values that would override the dynamically injected value from vite.config.ts.",
+      "reason": "No changes to any .env or .env.production files are present in the diff.",
+      "evidence": [
+        "project_state.json"
+      ]
+    },
+    {
+      "id": "REQ-14",
+      "requirement": "After fixes, ensure the Backend Connection Failed / Backend actor not available error screen is not shown and the app successfully initializes the backend actor and loads dashboard data.",
+      "reason": "No changes to frontend/src/App.tsx or any other frontend source files are present in the diff. Without the underlying fixes from REQ-10 through REQ-13, this acceptance criterion cannot be met.",
       "evidence": [
         "project_state.json"
       ]

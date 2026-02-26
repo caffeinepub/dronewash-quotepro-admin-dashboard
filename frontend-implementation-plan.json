@@ -1,42 +1,95 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix backend canister ID wiring — resolve 'Backend Connection Failed' error",
+  "title": "Fix frontend/backend canister ID synchronization on v48",
   "requirements": [
     {
-      "id": "REQ-7",
-      "summary": "Audit and fix frontend actor initialization to resolve canister ID mismatch causing 'Backend Connection Failed' error",
+      "id": "REQ-10",
+      "summary": "Audit and fix vite.config.ts to correctly read and inject the deployed IC canister ID from canister_ids.json",
       "acceptanceCriteria": [
-        "The 'Backend Connection Failed' screen no longer appears after login",
-        "The frontend successfully initializes the backend actor and loads dashboard data",
-        "The canister ID used in the frontend actor initialization matches the deployed Motoko canister ID",
-        "Clicking 'Retry Connection' (if still present) successfully connects without a page reload"
+        "`vite.config.ts` reads the canister ID from `canister_ids.json` under the `ic` network key for the backend canister.",
+        "The injected environment variable name exactly matches what `useActor.ts` references via `import.meta.env`.",
+        "A production build (`vite build`) embeds the correct IC canister ID string in the output bundle."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/vite.config.ts",
+          "operation": "modify",
+          "description": "Fix the canister ID lookup logic to correctly read from canister_ids.json using the exact canister name from dfx.json (likely 'dronewash_backend' or 'backend'). Ensure the code reads canister_ids[canisterName]['ic'] for the IC network deployment. Verify the environment variable name injected via `define` matches what useActor.ts expects (check for VITE_CANISTER_ID_BACKEND, CANISTER_ID_BACKEND, or similar). Replace any hardcoded fallback canister IDs with proper error handling if the IC canister ID is missing. Add a console log during build to confirm the loaded canister ID for debugging."
+        }
+      ]
+    },
+    {
+      "id": "REQ-11",
+      "summary": "Audit and fix useActor.ts to use the correct environment variable and remove hardcoded placeholder canister IDs",
+      "acceptanceCriteria": [
+        "`useActor.ts` uses the environment variable injected by `vite.config.ts` to resolve the backend canister ID.",
+        "No hardcoded placeholder canister ID remains in `useActor.ts` that could override the correct IC canister ID.",
+        "The actor is instantiated with the correct deployed canister ID when the app runs on IC mainnet."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useActor.ts",
           "operation": "modify",
-          "description": "Audit the actor initialization logic, canister ID resolution, and environment variable handling. Verify that the canister ID being used to create the backend actor matches the deployed DroneWash canister ID. Fix any hardcoded IDs, incorrect environment variable references, or misconfigured canister ID resolution that prevents successful connection to the backend."
+          "description": "Verify the canister ID is read from the correct import.meta.env variable (must match what vite.config.ts injects). Remove any hardcoded fallback canister ID string that would override the production value (e.g., 'rrkah-fqaaa-aaaaa-aaaaq-cai' or similar placeholder). Ensure the canister ID resolution prioritizes the environment variable over any default. Add runtime logging to confirm which canister ID is being used when creating the actor. If a fallback is needed for local development, use a conditional check for the network (local vs ic) rather than a hardcoded value."
+        }
+      ]
+    },
+    {
+      "id": "REQ-12",
+      "summary": "Verify canister_ids.json contains the correct IC network entry and the key name matches dfx.json",
+      "acceptanceCriteria": [
+        "The canister name key used in `vite.config.ts` to read `canister_ids.json` matches the name declared in `dfx.json`.",
+        "`canister_ids.json` contains a valid IC mainnet canister ID under the correct canister name and `ic` network key.",
+        "No lookup returns `undefined` or an empty string when `vite.config.ts` reads the canister ID at build time."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/vite.config.ts",
+          "operation": "modify",
+          "description": "Add validation logic to check that the canister name used to look up canister_ids.json exists and matches the backend canister name from dfx.json. Log a clear error message if canister_ids.json is missing, malformed, or lacks the 'ic' network entry. Ensure the lookup path is canister_ids[exactCanisterName]['ic'] where exactCanisterName must match dfx.json. Consider adding a build-time assertion that fails the build if the IC canister ID is undefined or empty."
+        }
+      ]
+    },
+    {
+      "id": "REQ-13",
+      "summary": "Ensure .env and .env.production files do not override the canister ID from vite.config.ts",
+      "acceptanceCriteria": [
+        "No `.env` or `.env.production` file overrides the canister ID with a wrong or placeholder value.",
+        "If a `.env.production` file exists, it either contains the correct IC canister ID or defers to the `vite.config.ts`-injected value.",
+        "The frontend build does not log a canister ID that differs from the one in `canister_ids.json` (`ic` entry)."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/.env.production",
+          "operation": "modify",
+          "description": "Review the .env.production file for any VITE_CANISTER_ID or similar variable that could override the vite.config.ts-injected canister ID. If a canister ID is hardcoded here, remove it or verify it matches the deployed IC canister ID exactly. Document that the canonical source for the IC canister ID is canister_ids.json via vite.config.ts, not environment files."
         },
         {
           "path": "frontend/.env",
           "operation": "modify",
-          "description": "Review and correct any environment variables related to canister IDs (e.g., VITE_BACKEND_CANISTER_ID, CANISTER_ID_BACKEND, or similar). Ensure the variable points to the correct deployed backend canister ID and is properly formatted for the build/runtime environment."
+          "description": "Check the .env file for any VITE_CANISTER_ID or backend canister ID variables. Remove any stale or placeholder values that could interfere with production builds. Ensure this file only contains local development overrides if needed, and does not affect IC deployments."
+        }
+      ]
+    },
+    {
+      "id": "REQ-14",
+      "summary": "Verify the backend connection error state is resolved after applying canister ID fixes",
+      "acceptanceCriteria": [
+        "The 'Backend Connection Failed' / 'Backend actor not available' error screen is not shown when the app loads on IC mainnet.",
+        "The backend actor is successfully created and at least one data query (e.g., jobs or funds) returns data without a connection error.",
+        "The app renders the Dashboard or Login page correctly without a blank page or build failure."
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/App.tsx",
+          "operation": "modify",
+          "description": "After canister ID fixes are applied, verify the actor initialization logic in App.tsx correctly handles the new canister ID. Ensure the backend connection error banner ('Backend actor not available. Please check your connection.') only displays when the actor truly fails to initialize, not due to a wrong canister ID. Add debug logging to confirm the actor is created successfully and can reach the backend. Test that the app transitions from the login page to the dashboard without showing the connection error screen."
         },
         {
-          "path": "frontend/vite.config.ts",
+          "path": "frontend/src/hooks/useActor.ts",
           "operation": "modify",
-          "description": "Check Vite configuration for any canister ID definitions or environment variable forwarding. Ensure that canister IDs are correctly injected into the build and accessible at runtime via import.meta.env or process.env as expected by useActor.ts."
-        },
-        {
-          "path": "dfx.json",
-          "operation": "modify",
-          "description": "Verify that dfx.json contains the correct deployed backend canister ID in the canisters.backend.canister_id field (for local or production network). Ensure the ID matches what the frontend is attempting to use."
-        },
-        {
-          "path": "canister_ids.json",
-          "operation": "modify",
-          "description": "If canister_ids.json exists, confirm that the backend canister ID entry matches the deployed canister. Ensure the network key (e.g., 'ic' or 'local') is correct and that the frontend build process reads from this file if applicable."
+          "description": "Add enhanced error handling and logging to the actor creation process to help diagnose connection failures. Log the resolved canister ID, network type, and any actor instantiation errors. Ensure the hook returns a clear error state if the canister ID is invalid or the actor fails to connect, so App.tsx can display appropriate user feedback. After fixes, verify that successful actor creation sets isFetching to false and error to null."
         }
       ]
     }
