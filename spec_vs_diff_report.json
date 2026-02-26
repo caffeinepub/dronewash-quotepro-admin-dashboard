@@ -1,53 +1,30 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T13:23:24.669Z",
-  "summary": "The diff shows only a modification to `project_state.json`, which is a metadata/state tracking file. None of the actual source files required by the build request (frontend/vite.config.ts, frontend/src/hooks/useActor.ts, canister_ids.json, dfx.json, frontend/.env, frontend/.env.production, frontend/src/App.tsx) were modified. All five requirements (REQ-10 through REQ-14) remain unimplemented.",
+  "generatedAt": "2026-02-26T13:56:21.807Z",
+  "summary": "The diff shows modifications to FundsManagement.tsx (PDF UI removed), frontend-file-summaries.txt, and project_state.json. Critically, the diff lists frontend/src/hooks/usePdfAttachments.ts as a 'modified' file rather than a removed file, and there is no evidence of changes to vite.config.ts, .env, or .env.production files.",
   "missing_requirements": [
     {
-      "id": "REQ-10",
-      "requirement": "Audit and fix frontend/vite.config.ts to correctly read the deployed IC canister ID from canister_ids.json under the ic network key and inject it as the correct environment variable consumed by useActor.ts.",
-      "reason": "No changes to frontend/vite.config.ts are present in the diff. The only modified file is project_state.json.",
-      "evidence": [
-        "project_state.json"
-      ]
-    },
-    {
       "id": "REQ-11",
-      "requirement": "Audit frontend/src/hooks/useActor.ts to verify it reads the canister ID from the correct import.meta.env variable and remove any hardcoded placeholder canister ID or incorrect fallback.",
-      "reason": "No changes to frontend/src/hooks/useActor.ts are present in the diff. The only modified file is project_state.json.",
+      "requirement": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`)",
+      "reason": "The diff summary lists `frontend/src/hooks/usePdfAttachments.ts` as a MODIFIED file, not a REMOVED file. The requirement explicitly states it must be deleted entirely. No evidence it was removed.",
       "evidence": [
-        "project_state.json"
-      ]
-    },
-    {
-      "id": "REQ-12",
-      "requirement": "Verify and correct any key name discrepancy between dfx.json, canister_ids.json, and vite.config.ts so that the canister name lookup is consistent and returns a valid IC mainnet canister ID.",
-      "reason": "No changes to canister_ids.json, dfx.json, or frontend/vite.config.ts are present in the diff.",
-      "evidence": [
-        "project_state.json"
+        "frontend/src/hooks/usePdfAttachments.ts"
       ]
     },
     {
       "id": "REQ-13",
-      "requirement": "Ensure .env or .env.production files in frontend/ do not contain stale or incorrect canister ID values that would override the dynamically injected value from vite.config.ts.",
-      "reason": "No changes to any .env or .env.production files are present in the diff.",
-      "evidence": [
-        "project_state.json"
-      ]
-    },
-    {
-      "id": "REQ-14",
-      "requirement": "After fixes, ensure the Backend Connection Failed / Backend actor not available error screen is not shown and the app successfully initializes the backend actor and loads dashboard data.",
-      "reason": "No changes to frontend/src/App.tsx or any other frontend source files are present in the diff. Without the underlying fixes from REQ-10 through REQ-13, this acceptance criterion cannot be met.",
-      "evidence": [
-        "project_state.json"
-      ]
+      "requirement": "Revert canister ID audit changes made to vite.config.ts, .env, .env.production, and the fallback logic in the canister resolution layer to v44 state",
+      "reason": "No changes to vite.config.ts, .env, or .env.production are present anywhere in the diff. These files are not listed as added, modified, or removed.",
+      "evidence": []
     }
   ],
   "hallucinated_features": [],
-  "confidence": 0.97,
+  "confidence": 0.82,
   "changed_files": [
+    "frontend-file-summaries.txt",
+    "frontend/src/components/FundsManagement.tsx",
+    "frontend/src/hooks/usePdfAttachments.ts",
     "project_state.json"
   ]
 }

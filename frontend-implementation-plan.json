@@ -1,95 +1,78 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix frontend/backend canister ID synchronization on v48",
+  "title": "Revert to v44 — Remove all PDF integration and canister audit changes",
   "requirements": [
     {
       "id": "REQ-10",
-      "summary": "Audit and fix vite.config.ts to correctly read and inject the deployed IC canister ID from canister_ids.json",
+      "summary": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx",
       "acceptanceCriteria": [
-        "`vite.config.ts` reads the canister ID from `canister_ids.json` under the `ic` network key for the backend canister.",
-        "The injected environment variable name exactly matches what `useActor.ts` references via `import.meta.env`.",
-        "A production build (`vite build`) embeds the correct IC canister ID string in the output bundle."
+        "No 'Attach PDF' button or file input appears on any transaction row in FundsManagement.tsx",
+        "No hidden file input elements with accept='.pdf' remain in the component"
       ],
       "file_operations": [
         {
-          "path": "frontend/vite.config.ts",
+          "path": "frontend/src/components/FundsManagement.tsx",
           "operation": "modify",
-          "description": "Fix the canister ID lookup logic to correctly read from canister_ids.json using the exact canister name from dfx.json (likely 'dronewash_backend' or 'backend'). Ensure the code reads canister_ids[canisterName]['ic'] for the IC network deployment. Verify the environment variable name injected via `define` matches what useActor.ts expects (check for VITE_CANISTER_ID_BACKEND, CANISTER_ID_BACKEND, or similar). Replace any hardcoded fallback canister IDs with proper error handling if the IC canister ID is missing. Add a console log during build to confirm the loaded canister ID for debugging."
+          "description": "Remove all PDF attachment UI elements from transaction rows: delete the 'Attach PDF' icon button (Paperclip icon), remove the hidden file input element with accept='.pdf', and remove all event handlers related to PDF file selection. The transaction rows must return to their pre-PDF state showing only transaction data (date, type, amount, description, category) without any PDF-related controls."
         }
       ]
     },
     {
       "id": "REQ-11",
-      "summary": "Audit and fix useActor.ts to use the correct environment variable and remove hardcoded placeholder canister IDs",
+      "summary": "Delete the usePdfAttachments custom React hook file",
       "acceptanceCriteria": [
-        "`useActor.ts` uses the environment variable injected by `vite.config.ts` to resolve the backend canister ID.",
-        "No hardcoded placeholder canister ID remains in `useActor.ts` that could override the correct IC canister ID.",
-        "The actor is instantiated with the correct deployed canister ID when the app runs on IC mainnet."
+        "The file `frontend/src/hooks/usePdfAttachments.ts` no longer exists in the project",
+        "No imports of `usePdfAttachments` remain anywhere in the codebase"
       ],
       "file_operations": [
         {
-          "path": "frontend/src/hooks/useActor.ts",
-          "operation": "modify",
-          "description": "Verify the canister ID is read from the correct import.meta.env variable (must match what vite.config.ts injects). Remove any hardcoded fallback canister ID string that would override the production value (e.g., 'rrkah-fqaaa-aaaaa-aaaaq-cai' or similar placeholder). Ensure the canister ID resolution prioritizes the environment variable over any default. Add runtime logging to confirm which canister ID is being used when creating the actor. If a fallback is needed for local development, use a conditional check for the network (local vs ic) rather than a hardcoded value."
+          "path": "frontend/src/hooks/usePdfAttachments.ts",
+          "operation": "delete",
+          "description": "Delete the entire usePdfAttachments hook file that provides IndexedDB-based PDF storage functionality (savePdf, getPdf, deletePdf, hasAttachment) keyed by transaction ID. This hook was added during the PDF integration phase and must be completely removed."
         }
       ]
     },
     {
       "id": "REQ-12",
-      "summary": "Verify canister_ids.json contains the correct IC network entry and the key name matches dfx.json",
+      "summary": "Remove all usePdfAttachments hook wiring and PDF UI logic from FundsManagement.tsx",
       "acceptanceCriteria": [
-        "The canister name key used in `vite.config.ts` to read `canister_ids.json` matches the name declared in `dfx.json`.",
-        "`canister_ids.json` contains a valid IC mainnet canister ID under the correct canister name and `ic` network key.",
-        "No lookup returns `undefined` or an empty string when `vite.config.ts` reads the canister ID at build time."
+        "Transaction rows in FundsManagement.tsx show no PDF-related buttons (Attach, View, Download)",
+        "No paperclip icon or green checkmark attachment indicator appears on any transaction row",
+        "No calls to savePdf, getPdf, deletePdf, or hasAttachment exist in FundsManagement.tsx",
+        "The component compiles and renders without errors"
       ],
       "file_operations": [
         {
-          "path": "frontend/vite.config.ts",
+          "path": "frontend/src/components/FundsManagement.tsx",
           "operation": "modify",
-          "description": "Add validation logic to check that the canister name used to look up canister_ids.json exists and matches the backend canister name from dfx.json. Log a clear error message if canister_ids.json is missing, malformed, or lacks the 'ic' network entry. Ensure the lookup path is canister_ids[exactCanisterName]['ic'] where exactCanisterName must match dfx.json. Consider adding a build-time assertion that fails the build if the IC canister ID is undefined or empty."
+          "description": "Remove all usePdfAttachments hook integration: delete the import statement for usePdfAttachments, remove the hook initialization and all destructured functions (savePdf, getPdf, deletePdf, hasAttachment), delete the handleFileSelect function that calls savePdf, remove all PDF-related UI elements from transaction rows including the 'View' button (eye icon) that opens PDFs in new tabs, the 'Download' button (download icon) that triggers file downloads, and any conditional rendering based on hasAttachment (paperclip or green checkmark indicators). Restore transaction rows to their v44 baseline state showing only the standard transaction data columns without any PDF attachment features."
         }
       ]
     },
     {
       "id": "REQ-13",
-      "summary": "Ensure .env and .env.production files do not override the canister ID from vite.config.ts",
+      "summary": "Revert canister ID audit changes to vite.config.ts, .env, and .env.production back to v44 state",
       "acceptanceCriteria": [
-        "No `.env` or `.env.production` file overrides the canister ID with a wrong or placeholder value.",
-        "If a `.env.production` file exists, it either contains the correct IC canister ID or defers to the `vite.config.ts`-injected value.",
-        "The frontend build does not log a canister ID that differs from the one in `canister_ids.json` (`ic` entry)."
+        "vite.config.ts canister ID injection logic matches the v44 state",
+        "Any .env or .env.production files modified during the canister audit are restored to their v44 state",
+        "No canister audit-specific overrides or patches remain outside of the immutable useActor.ts file"
       ],
       "file_operations": [
         {
-          "path": "frontend/.env.production",
+          "path": "frontend/vite.config.ts",
           "operation": "modify",
-          "description": "Review the .env.production file for any VITE_CANISTER_ID or similar variable that could override the vite.config.ts-injected canister ID. If a canister ID is hardcoded here, remove it or verify it matches the deployed IC canister ID exactly. Document that the canonical source for the IC canister ID is canister_ids.json via vite.config.ts, not environment files."
+          "description": "Revert the canister ID resolution logic to the v44 baseline state. This includes restoring the original canister_ids.json and .dfx/local loading logic, removing any audit-specific fallback mechanisms, canister ID validation code, or explicit canister ID overrides that were added during the v45+ canister audit work. Ensure the configuration matches exactly how it loaded canister IDs in the last stable v44 version before the PDF integration began."
         },
         {
           "path": "frontend/.env",
           "operation": "modify",
-          "description": "Check the .env file for any VITE_CANISTER_ID or backend canister ID variables. Remove any stale or placeholder values that could interfere with production builds. Ensure this file only contains local development overrides if needed, and does not affect IC deployments."
-        }
-      ]
-    },
-    {
-      "id": "REQ-14",
-      "summary": "Verify the backend connection error state is resolved after applying canister ID fixes",
-      "acceptanceCriteria": [
-        "The 'Backend Connection Failed' / 'Backend actor not available' error screen is not shown when the app loads on IC mainnet.",
-        "The backend actor is successfully created and at least one data query (e.g., jobs or funds) returns data without a connection error.",
-        "The app renders the Dashboard or Login page correctly without a blank page or build failure."
-      ],
-      "file_operations": [
-        {
-          "path": "frontend/src/App.tsx",
-          "operation": "modify",
-          "description": "After canister ID fixes are applied, verify the actor initialization logic in App.tsx correctly handles the new canister ID. Ensure the backend connection error banner ('Backend actor not available. Please check your connection.') only displays when the actor truly fails to initialize, not due to a wrong canister ID. Add debug logging to confirm the actor is created successfully and can reach the backend. Test that the app transitions from the login page to the dashboard without showing the connection error screen."
+          "description": "Revert any canister-related environment variable changes made during the canister audit work (v45+) back to the v44 baseline. Remove any explicit CANISTER_ID_* overrides, audit flags, or debugging variables that were added after v44. If the file did not exist in v44 or contained no canister audit-specific content, restore it to that state or delete audit-specific entries."
         },
         {
-          "path": "frontend/src/hooks/useActor.ts",
+          "path": "frontend/.env.production",
           "operation": "modify",
-          "description": "Add enhanced error handling and logging to the actor creation process to help diagnose connection failures. Log the resolved canister ID, network type, and any actor instantiation errors. Ensure the hook returns a clear error state if the canister ID is invalid or the actor fails to connect, so App.tsx can display appropriate user feedback. After fixes, verify that successful actor creation sets isFetching to false and error to null."
+          "description": "Revert any production canister ID configuration changes made during the canister audit work back to the v44 baseline state. Remove any explicit canister ID overrides, fallback logic references, or audit-specific production environment variables that were introduced after v44. Restore the file to match its exact v44 state before the PDF integration and canister audit phases."
         }
       ]
     }

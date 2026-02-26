@@ -1,20 +1,16 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 13,
-  "summary": "Expense and fund management app with PDF attachment feature. Steps 1-3 (UI button, IndexedDB hook, save/view/download wiring) are complete. Now working on v48 to fix frontend/backend synchronization — auditing useActor.ts, canister_ids.json, vite.config.ts, and .env files so the frontend correctly connects to the deployed DroneWash Motoko canister. V44 is the last known-good fallback if the fix cannot be confirmed.",
+  "projectStateVersion": 15,
+  "summary": "Expense and fund management app. User confirmed revert to v44 — the last known-good version before any PDF integration work began. All PDF-related changes (Attach PDF button, usePdfAttachments IndexedDB hook, save/view/download wiring, visual indicators) and canister ID audit/fix work from v45–v49 are being removed. The app will be restored to the stable pre-PDF baseline at v44.",
   "architectural_notes": [
     "PDF feature is being implemented incrementally in 4 steps to stay within free plan resource limits",
     "No changes to existing categories, funds, or transaction structure — PDF attachment is additive only",
-    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices.",
-    "V44 is the last known-good baseline — will revert to v44 if v48 frontend/backend sync fix cannot be confirmed working"
+    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices."
   ],
   "known_issues": [
-    "Build process hits resource limits on large builds under free plan — must use incremental small changes",
-    "Backend Motoko PDF storage additions repeatedly fail to build — incremental sub-steps (2.1a, 2.1b, etc.) all hit AI/build errors",
-    "Frontend shows 'Backend actor not available / Backend Connection Failed' — canister ID wiring mismatch between frontend config and deployed Motoko canister",
-    "V48 deployment broke the app entirely (blank page or full failure) — v44 was last working version"
+    "Build process hits resource limits on large builds under free plan — must use incremental small changes"
   ],
-  "isFixRequest": true,
+  "isFixRequest": false,
   "existing_features": [
     {
       "id": "feature-in-the-quotations-fund-transaction-rows-within-fundsmanagement-or-the-relevant-fund-transactions-table-add-a-small-attach-pdf-icon-button-on-each-transaction-row-clicking-the-button-opens-a-native-file-picker-restricted-to-pdf-files-only-accept-pdf-no-file-is-uploaded-or-stored-the-file-picker-opens-and-closes-with-no-further-action-this-is-purely-a-ui-change-with-no-backend-interaction",
@@ -71,80 +67,38 @@
         "REQ-9"
       ],
       "version": 1
+    },
+    {
+      "id": "feature-remove-the-attach-pdf-icon-button-from-all-quotations-fund-transaction-rows-in-fundsmanagement-tsx-this-was-the-initial-pdf-ui-change-added-in-the-first-pdf-integration-step",
+      "title": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx. This was the initial PDF UI change added in the first PDF integration step.",
+      "reqIds": [
+        "REQ-10"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-delete-the-usepdfattachments-custom-react-hook-file-frontend-src-hooks-usepdfattachments-ts-that-wraps-indexeddb-operations-for-storing-retrieving-and-deleting-pdf-files-keyed-by-transaction-id",
+      "title": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID.",
+      "reqIds": [
+        "REQ-11"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-remove-all-usepdfattachments-hook-wiring-from-fundsmanagement-tsx-specifically-the-savepdf-call-on-file-selection-the-hasattachment-based-visual-indicator-paperclip-icon-or-green-checkmark-the-view-button-that-opens-a-pdf-in-a-new-tab-and-the-download-button-that-triggers-a-browser-file-download-the-transaction-rows-must-be-restored-to-their-pre-pdf-state-with-no-pdf-related-ui-or-logic",
+      "title": "Remove all usePdfAttachments hook wiring from FundsManagement.tsx — specifically the savePdf call on file selection, the hasAttachment-based visual indicator (paperclip icon or green checkmark), the 'View' button that opens a PDF in a new tab, and the 'Download' button that triggers a browser file download. The transaction rows must be restored to their pre-PDF state with no PDF-related UI or logic.",
+      "reqIds": [
+        "REQ-12"
+      ],
+      "version": 1
     }
   ],
   "new_feature_requests": [
     {
-      "id": "AR-1",
-      "summary": "Add PDF upload button (UI only) to Quotations Fund transaction rows - Step 1 of incremental PDF attachment feature",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
       "id": "AR-4",
-      "summary": "Roll out PDF attachment feature to all remaining funds - Step 4",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-5",
-      "summary": "Frontend-only PDF storage via IndexedDB for Quotations Fund transactions — save PDF on attach, show paperclip indicator, View/Open and Download buttons",
-      "reqIds": [],
-      "status": "pending"
-    },
-    {
-      "id": "AR-6",
-      "summary": "Audit the frontend canister actor initialization code (in useActor.ts and any related config files such as canister_ids.json, dfx.json, or environment variable resolution) and fix any mismatch between the deployed backend canister ID and the ID the frontend is using to create the actor, so that the 'Backend actor not available. Please check your connection.' error is resolved and the app connects successfully to the DroneWash Motoko canister.",
-      "reqIds": [
-        "REQ-7"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-7",
-      "summary": "Audit `frontend/src/hooks/useActor.ts` and all related canister configuration files (`canister_ids.json`, `dfx.json`, and any environment variable resolution logic such as `vite.config.ts` or `.env` files) to identify the mismatch between the deployed DroneWash backend canister ID and the ID the frontend is using to instantiate the actor. Fix the wiring so the frontend correctly resolves and uses the deployed canister ID, eliminating the 'Backend Connection Failed / Backend actor not available. Please check your connection.' error shown in the app.",
-      "reqIds": [
-        "REQ-8"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-8",
-      "summary": "Audit `frontend/vite.config.ts` to ensure it correctly reads the deployed IC canister ID from `canister_ids.json` (the `ic` network entry for the DroneWash backend canister) and injects it as the environment variable that `useActor.ts` consumes at runtime. Fix any key name mismatch, missing property path (e.g., `canister_ids['dronewash_backend']['ic']`), or incorrect `define` / `import.meta.env` variable name so the production build receives the correct canister ID.",
-      "reqIds": [
-        "REQ-10"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-9",
-      "summary": "Audit `frontend/src/hooks/useActor.ts` to verify it reads the canister ID from the correct `import.meta.env` variable (matching what `vite.config.ts` injects) and that the fallback/default value is not overriding the real deployed canister ID. Remove or correct any hardcoded placeholder canister ID or fallback that would cause the actor to target the wrong canister on IC mainnet.",
-      "reqIds": [
-        "REQ-11"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-10",
-      "summary": "Verify that `canister_ids.json` at the project root contains the correct `ic` network entry for the DroneWash backend canister and that the key name used to look it up in `vite.config.ts` exactly matches the canister name declared in `dfx.json`. Correct any key name discrepancy between `dfx.json`, `canister_ids.json`, and `vite.config.ts`.",
-      "reqIds": [
-        "REQ-12"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-11",
-      "summary": "Ensure any `.env` or `.env.production` files in the `frontend/` directory do not contain a stale or incorrect canister ID value that would override the dynamically injected value from `vite.config.ts`. Remove or correct any conflicting `VITE_CANISTER_ID` (or equivalent) entries in those files.",
+      "summary": "Revert any canister ID audit changes made to `vite.config.ts`, `.env`, `.env.production`, and the fallback logic in the canister resolution layer (but NOT `frontend/src/hooks/useActor.ts` which is immutable). Restore these files to the exact state they were in at v44 — the stable baseline before the canister audit work began in v45.",
       "reqIds": [
         "REQ-13"
-      ],
-      "status": "pending"
-    },
-    {
-      "id": "AR-12",
-      "summary": "After applying all canister ID wiring fixes, ensure the `App.tsx` backend connection error state (the 'Backend actor not available. Please check your connection.' / 'Backend Connection Failed' banner) is no longer triggered on the live IC app. The app should successfully initialize the backend actor and load dashboard data without displaying the connection error screen.",
-      "reqIds": [
-        "REQ-14"
       ],
       "status": "pending"
     }
