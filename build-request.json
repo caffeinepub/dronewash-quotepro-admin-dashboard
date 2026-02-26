@@ -1,0 +1,42 @@
+{
+  "kind": "build_request",
+  "title": "Fix backend canister ID wiring — resolve 'Backend Connection Failed' error",
+  "priority": "high",
+  "requirements": [
+    {
+      "id": "REQ-7",
+      "text": "Audit the frontend canister actor initialization code (in useActor.ts and any related config files such as canister_ids.json, dfx.json, or environment variable resolution) and fix any mismatch between the deployed backend canister ID and the ID the frontend is using to create the actor, so that the 'Backend actor not available. Please check your connection.' error is resolved and the app connects successfully to the DroneWash Motoko canister.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-recent"
+        ],
+        "quotes": [
+          "Backend actor not available. Please check your connection.",
+          "Backend Connection Failed",
+          "Incorrect canister ID configuration"
+        ]
+      },
+      "acceptanceCriteria": [
+        "The 'Backend Connection Failed' screen no longer appears after login",
+        "The frontend successfully initializes the backend actor and loads dashboard data",
+        "The canister ID used in the frontend actor initialization matches the deployed Motoko canister ID",
+        "Clicking 'Retry Connection' (if still present) successfully connects without a page reload"
+      ]
+    }
+  ],
+  "constraints": [
+    "Do not modify files under frontend/src/hooks/useInternetIdentity.ts or frontend/src/main.tsx",
+    "Do not change backend Motoko code — this is a frontend configuration fix only",
+    "Do not introduce new dependencies"
+  ],
+  "nonGoals": [
+    "Adding new features",
+    "Changing the PDF attachment functionality",
+    "Modifying backend data models or Motoko actor logic"
+  ],
+  "imageRequirements": {
+    "required": [],
+    "edits": []
+  }
+}

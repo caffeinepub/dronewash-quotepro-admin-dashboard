@@ -1,0 +1,98 @@
+{
+  "schemaVersion": "1.0.0",
+  "projectStateVersion": 7,
+  "summary": "Expense and fund management app with PDF attachment feature. Step 1 (UI button) is complete. Now implementing frontend-only PDF storage using IndexedDB for Quotations Fund transaction rows — includes visual indicator, View/Open button, and download capability. Backend PDF storage approach was abandoned due to repeated build failures.",
+  "architectural_notes": [
+    "PDF feature is being implemented incrementally in 4 steps to stay within free plan resource limits",
+    "No changes to existing categories, funds, or transaction structure — PDF attachment is additive only",
+    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices."
+  ],
+  "known_issues": [
+    "Build process hits resource limits on large builds under free plan — must use incremental small changes",
+    "Backend Motoko PDF storage additions repeatedly fail to build — incremental sub-steps (2.1a, 2.1b, etc.) all hit AI/build errors",
+    "Frontend shows 'Backend actor not available / Backend Connection Failed' — canister ID wiring mismatch between frontend config and deployed Motoko canister"
+  ],
+  "isFixRequest": true,
+  "existing_features": [
+    {
+      "id": "feature-in-the-quotations-fund-transaction-rows-within-fundsmanagement-or-the-relevant-fund-transactions-table-add-a-small-attach-pdf-icon-button-on-each-transaction-row-clicking-the-button-opens-a-native-file-picker-restricted-to-pdf-files-only-accept-pdf-no-file-is-uploaded-or-stored-the-file-picker-opens-and-closes-with-no-further-action-this-is-purely-a-ui-change-with-no-backend-interaction",
+      "title": "In the Quotations Fund transaction rows (within FundsManagement or the relevant fund transactions table), add a small 'Attach PDF' icon button on each transaction row. Clicking the button opens a native file picker restricted to PDF files only (accept='.pdf'). No file is uploaded or stored — the file picker opens and closes with no further action. This is purely a UI change with no backend interaction.",
+      "reqIds": [
+        "REQ-1"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-create-a-custom-react-hook-e-g-usepdfattachments-that-wraps-indexeddb-operations-for-storing-retrieving-and-deleting-pdf-files-keyed-by-transaction-id-the-hook-should-expose-savepdf-transactionid-file-getpdf-transactionid-deletepdf-transactionid-and-hasattachment-transactionid-use-the-browser-s-native-indexeddb-api-directly-or-via-a-thin-wrapper-no-backend-interaction",
+      "title": "Create a custom React hook (e.g., `usePdfAttachments`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID. The hook should expose: `savePdf(transactionId, file)`, `getPdf(transactionId)`, `deletePdf(transactionId)`, and `hasAttachment(transactionId)`. Use the browser's native IndexedDB API directly or via a thin wrapper. No backend interaction.",
+      "reqIds": [
+        "REQ-2"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-wire-the-existing-attach-pdf-button-to-call-savepdf-transactionid-file-from-the-usepdfattachments-hook-after-the-user-selects-a-pdf-via-the-file-picker-the-file-should-be-stored-in-indexeddb-immediately-upon-selection",
+      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, wire the existing 'Attach PDF' button to call `savePdf(transactionId, file)` from the `usePdfAttachments` hook after the user selects a PDF via the file picker. The file should be stored in IndexedDB immediately upon selection.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-display-a-visual-indicator-paperclip-icon-or-green-checkmark-on-rows-where-a-pdf-has-been-stored-in-indexeddb-use-hasattachment-transactionid-from-the-usepdfattachments-hook-to-determine-which-rows-show-the-indicator-the-indicator-should-update-reactively-after-a-file-is-attached",
+      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, display a visual indicator (paperclip icon or green checkmark) on rows where a PDF has been stored in IndexedDB. Use `hasAttachment(transactionId)` from the `usePdfAttachments` hook to determine which rows show the indicator. The indicator should update reactively after a file is attached.",
+      "reqIds": [
+        "REQ-4"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-add-a-view-button-that-appears-only-on-rows-with-an-attached-pdf-clicking-view-retrieves-the-blob-from-indexeddb-using-getpdf-transactionid-creates-an-object-url-and-opens-the-pdf-in-a-new-browser-tab",
+      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, add a 'View' button that appears only on rows with an attached PDF. Clicking 'View' retrieves the Blob from IndexedDB using `getPdf(transactionId)`, creates an object URL, and opens the PDF in a new browser tab.",
+      "reqIds": [
+        "REQ-5"
+      ],
+      "version": 1
+    },
+    {
+      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-add-a-download-button-that-appears-only-on-rows-with-an-attached-pdf-clicking-download-retrieves-the-blob-from-indexeddb-using-getpdf-transactionid-creates-a-temporary-anchor-element-and-triggers-a-browser-download-of-the-pdf-file-so-the-user-can-save-it-locally-and-share-it-with-a-colleague",
+      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, add a 'Download' button that appears only on rows with an attached PDF. Clicking 'Download' retrieves the Blob from IndexedDB using `getPdf(transactionId)`, creates a temporary anchor element, and triggers a browser download of the PDF file so the user can save it locally and share it with a colleague.",
+      "reqIds": [
+        "REQ-6"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
+      "id": "AR-1",
+      "summary": "Add PDF upload button (UI only) to Quotations Fund transaction rows - Step 1 of incremental PDF attachment feature",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-4",
+      "summary": "Roll out PDF attachment feature to all remaining funds - Step 4",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-5",
+      "summary": "Frontend-only PDF storage via IndexedDB for Quotations Fund transactions — save PDF on attach, show paperclip indicator, View/Open and Download buttons",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-6",
+      "summary": "Audit the frontend canister actor initialization code (in useActor.ts and any related config files such as canister_ids.json, dfx.json, or environment variable resolution) and fix any mismatch between the deployed backend canister ID and the ID the frontend is using to create the actor, so that the 'Backend actor not available. Please check your connection.' error is resolved and the app connects successfully to the DroneWash Motoko canister.",
+      "reqIds": [
+        "REQ-7"
+      ],
+      "status": "pending"
+    }
+  ],
+  "gameProjectType": "none",
+  "projectName": "DroneWash QuotePro",
+  "clarification_mode": "instant",
+  "clarification_rounds": 0
+}

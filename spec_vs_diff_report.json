@@ -1,0 +1,21 @@
+{
+  "kind": "spec_vs_diff_report",
+  "version": "1.0",
+  "generatedAt": "2026-02-26T11:46:37.458Z",
+  "summary": "The diff only modifies project_state.json, which is a metadata/state tracking file. No changes were made to frontend canister actor initialization code (useActor.ts), canister_ids.json, dfx.json, environment variable configuration, or any other frontend source files that would fix the backend canister ID mismatch described in REQ-7.",
+  "missing_requirements": [
+    {
+      "id": "REQ-7",
+      "requirement": "Audit and fix the frontend canister actor initialization code (useActor.ts and related config files) so the canister ID used matches the deployed Motoko canister ID, resolving the 'Backend actor not available' error.",
+      "reason": "The diff contains no changes to useActor.ts, canister_ids.json, dfx.json, environment variable files, or any frontend source code. Only project_state.json was modified, which is a metadata file and does not affect runtime behavior.",
+      "evidence": [
+        "project_state.json"
+      ]
+    }
+  ],
+  "hallucinated_features": [],
+  "confidence": 0.97,
+  "changed_files": [
+    "project_state.json"
+  ]
+}

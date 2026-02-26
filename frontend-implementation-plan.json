@@ -1,0 +1,44 @@
+{
+  "kind": "implementation_plan",
+  "version": "1.0",
+  "title": "Fix backend canister ID wiring — resolve 'Backend Connection Failed' error",
+  "requirements": [
+    {
+      "id": "REQ-7",
+      "summary": "Audit and fix frontend actor initialization to resolve canister ID mismatch causing 'Backend Connection Failed' error",
+      "acceptanceCriteria": [
+        "The 'Backend Connection Failed' screen no longer appears after login",
+        "The frontend successfully initializes the backend actor and loads dashboard data",
+        "The canister ID used in the frontend actor initialization matches the deployed Motoko canister ID",
+        "Clicking 'Retry Connection' (if still present) successfully connects without a page reload"
+      ],
+      "file_operations": [
+        {
+          "path": "frontend/src/hooks/useActor.ts",
+          "operation": "modify",
+          "description": "Audit the actor initialization logic, canister ID resolution, and environment variable handling. Verify that the canister ID being used to create the backend actor matches the deployed DroneWash canister ID. Fix any hardcoded IDs, incorrect environment variable references, or misconfigured canister ID resolution that prevents successful connection to the backend."
+        },
+        {
+          "path": "frontend/.env",
+          "operation": "modify",
+          "description": "Review and correct any environment variables related to canister IDs (e.g., VITE_BACKEND_CANISTER_ID, CANISTER_ID_BACKEND, or similar). Ensure the variable points to the correct deployed backend canister ID and is properly formatted for the build/runtime environment."
+        },
+        {
+          "path": "frontend/vite.config.ts",
+          "operation": "modify",
+          "description": "Check Vite configuration for any canister ID definitions or environment variable forwarding. Ensure that canister IDs are correctly injected into the build and accessible at runtime via import.meta.env or process.env as expected by useActor.ts."
+        },
+        {
+          "path": "dfx.json",
+          "operation": "modify",
+          "description": "Verify that dfx.json contains the correct deployed backend canister ID in the canisters.backend.canister_id field (for local or production network). Ensure the ID matches what the frontend is attempting to use."
+        },
+        {
+          "path": "canister_ids.json",
+          "operation": "modify",
+          "description": "If canister_ids.json exists, confirm that the backend canister ID entry matches the deployed canister. Ensure the network key (e.g., 'ic' or 'local') is correct and that the frontend build process reads from this file if applicable."
+        }
+      ]
+    }
+  ]
+}
