@@ -1,58 +1,25 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-26T13:56:21.810Z",
+  "generatedAt": "2026-02-28T06:50:19.034Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 4,
-    "implemented": 3,
+    "total": 1,
+    "implemented": 1,
     "items": [
       {
-        "id": "REQ-10",
-        "summary": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx. This was the initial PDF UI change added in the first PDF integration step.",
+        "id": "REQ-1",
+        "summary": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
         "status": "implemented",
         "plannedFiles": [
-          "frontend/src/components/FundsManagement.tsx"
+          "frontend/src/components/MaintenanceManagement.tsx"
         ],
         "matchedFiles": [
-          "frontend/src/components/FundsManagement.tsx"
+          "frontend/src/components/MaintenanceManagement.tsx"
         ]
-      },
-      {
-        "id": "REQ-11",
-        "summary": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/hooks/usePdfAttachments.ts"
-        ],
-        "matchedFiles": [
-          "frontend/src/hooks/usePdfAttachments.ts"
-        ]
-      },
-      {
-        "id": "REQ-12",
-        "summary": "Remove all usePdfAttachments hook wiring from FundsManagement.tsx — specifically the savePdf call on file selection, the hasAttachment-based visual indicator (paperclip icon or green checkmark), the 'View' button that opens a PDF in a new tab, and the 'Download' button that triggers a browser file download. The transaction rows must be restored to their pre-PDF state with no PDF-related UI or logic.",
-        "status": "implemented",
-        "plannedFiles": [
-          "frontend/src/components/FundsManagement.tsx"
-        ],
-        "matchedFiles": [
-          "frontend/src/components/FundsManagement.tsx"
-        ]
-      },
-      {
-        "id": "REQ-13",
-        "summary": "Revert any canister ID audit changes made to `vite.config.ts`, `.env`, `.env.production`, and the fallback logic in the canister resolution layer (but NOT `frontend/src/hooks/useActor.ts` which is immutable). Restore these files to the exact state they were in at v44 — the stable baseline before the canister audit work began in v45.",
-        "status": "missing",
-        "plannedFiles": [
-          "frontend/vite.config.ts",
-          "frontend/.env",
-          "frontend/.env.production"
-        ],
-        "matchedFiles": []
       }
     ]
   },
@@ -61,8 +28,7 @@
     "feature_evidence.json",
     "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
-    "frontend/src/components/FundsManagement.tsx",
-    "frontend/src/hooks/usePdfAttachments.ts",
+    "frontend/src/components/MaintenanceManagement.tsx",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

@@ -1,96 +1,44 @@
 {
   "kind": "build_request",
-  "title": "Revert to v44 — Remove all PDF integration and canister audit changes",
-  "projectName": "DroneWash QuotePro",
-  "priority": "high",
+  "title": "Step 1: Add Reset Button UI to Maintenance Management (no logic)",
+  "projectName": "DroneWash Dashboard",
+  "priority": "normal",
   "requirements": [
     {
-      "id": "REQ-10",
-      "text": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx. This was the initial PDF UI change added in the first PDF integration step.",
+      "id": "REQ-1",
+      "text": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
       "target": "frontend",
       "source": {
         "messageIds": [
-          "msg-revert-confirm"
+          "msg-recent"
         ],
         "quotes": [
-          "i need to revert to the last operating version before implementing changes to integrate pdf. nothing is working since we integrated the pdf"
+          "Step 1: Reset button UI only — Add a 'Reset' button to the maintenance management section — no logic attached yet, just the visual element."
         ]
       },
       "acceptanceCriteria": [
-        "No 'Attach PDF' button or file input appears on any transaction row in FundsManagement.tsx",
-        "No hidden file input elements with accept='.pdf' remain in the component"
-      ]
-    },
-    {
-      "id": "REQ-11",
-      "text": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-revert-confirm"
-        ],
-        "quotes": [
-          "revert to the last operating version before implementing changes to integrate pdf"
-        ]
-      },
-      "acceptanceCriteria": [
-        "The file `frontend/src/hooks/usePdfAttachments.ts` no longer exists in the project",
-        "No imports of `usePdfAttachments` remain anywhere in the codebase"
-      ]
-    },
-    {
-      "id": "REQ-12",
-      "text": "Remove all usePdfAttachments hook wiring from FundsManagement.tsx — specifically the savePdf call on file selection, the hasAttachment-based visual indicator (paperclip icon or green checkmark), the 'View' button that opens a PDF in a new tab, and the 'Download' button that triggers a browser file download. The transaction rows must be restored to their pre-PDF state with no PDF-related UI or logic.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-revert-confirm"
-        ],
-        "quotes": [
-          "nothing is working since we integrated the pdf",
-          "confirmed. version 44"
-        ]
-      },
-      "acceptanceCriteria": [
-        "Transaction rows in FundsManagement.tsx show no PDF-related buttons (Attach, View, Download)",
-        "No paperclip icon or green checkmark attachment indicator appears on any transaction row",
-        "No calls to savePdf, getPdf, deletePdf, or hasAttachment exist in FundsManagement.tsx",
-        "The component compiles and renders without errors"
-      ]
-    },
-    {
-      "id": "REQ-13",
-      "text": "Revert any canister ID audit changes made to `vite.config.ts`, `.env`, `.env.production`, and the fallback logic in the canister resolution layer (but NOT `frontend/src/hooks/useActor.ts` which is immutable). Restore these files to the exact state they were in at v44 — the stable baseline before the canister audit work began in v45.",
-      "target": "frontend",
-      "source": {
-        "messageIds": [
-          "msg-revert-confirm"
-        ],
-        "quotes": [
-          "revert to the last operating version before implementing changes to integrate pdf",
-          "confirmed. version 44"
-        ]
-      },
-      "acceptanceCriteria": [
-        "vite.config.ts canister ID injection logic matches the v44 state",
-        "Any .env or .env.production files modified during the canister audit are restored to their v44 state",
-        "No canister audit-specific overrides or patches remain outside of the immutable useActor.ts file"
+        "A 'Reset' button is visible in the MaintenanceManagement component when the logged-in user is an admin.",
+        "The button is NOT visible to non-admin (viewer) users.",
+        "The button uses a destructive or warning visual style (red/orange tones) to signal danger.",
+        "The button is placed near the existing admin controls (e.g., next to or below the 'Add Maintenance Expense' button).",
+        "Clicking the button does not trigger any backend call or data mutation — it is a no-op or logs a placeholder console message.",
+        "No new backend functions or mutations are introduced in this step.",
+        "The rest of the MaintenanceManagement UI remains unchanged."
       ]
     }
   ],
   "constraints": [
-    "Do NOT modify frontend/src/hooks/useActor.ts — it is an immutable path",
-    "Do NOT modify frontend/src/hooks/useInternetIdentity.ts — it is an immutable path",
-    "Do NOT modify frontend/src/main.tsx — it is an immutable path",
-    "Do NOT modify anything under frontend/src/components/ui — immutable path",
-    "No backend changes required — this revert is frontend-only",
-    "The result must exactly match the v44 stable baseline state"
+    "Do not add any backend logic, Motoko functions, or mutations in this step.",
+    "Do not wire the button to any existing or new query/mutation hooks.",
+    "Preserve all existing MaintenanceManagement functionality exactly as-is.",
+    "Do not modify any immutable paths (frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui)."
   ],
   "nonGoals": [
-    "Re-implementing any PDF attachment features",
-    "Adding any new features beyond the v44 baseline",
-    "Fixing or patching the canister connection error with new logic — only reverting the audit changes",
-    "Modifying the backend Motoko actor"
+    "Backend reset function for collections (Step 2).",
+    "Backend reset function for expenses (Step 3).",
+    "Wiring the button to any reset logic (Steps 4 and 5).",
+    "Confirmation dialog or success feedback (Step 6).",
+    "Any changes to other components outside MaintenanceManagement."
   ],
   "imageRequirements": {
     "required": [],

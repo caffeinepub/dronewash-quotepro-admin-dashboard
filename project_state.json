@@ -1,110 +1,41 @@
 {
   "schemaVersion": "1.0.0",
-  "projectStateVersion": 15,
-  "summary": "Expense and fund management app. User confirmed revert to v44 — the last known-good version before any PDF integration work began. All PDF-related changes (Attach PDF button, usePdfAttachments IndexedDB hook, save/view/download wiring, visual indicators) and canister ID audit/fix work from v45–v49 are being removed. The app will be restored to the stable pre-PDF baseline at v44.",
+  "projectStateVersion": 3,
+  "summary": "Building a maintenance management app with features including a maintenance fund ledger (with delete/edit entries) and a reset button for total collections and expenses. Currently implementing the reset button in 6 micro-steps to work around free plan build limitations. Draft 50 is the last known stable version used as rollback checkpoint.",
   "architectural_notes": [
-    "PDF feature is being implemented incrementally in 4 steps to stay within free plan resource limits",
-    "No changes to existing categories, funds, or transaction structure — PDF attachment is additive only",
-    "PDF storage uses browser IndexedDB (frontend-only) — no backend canister changes. PDFs are per-device and not synced across users/devices."
+    "Builds are split into 6 micro-steps to avoid free plan tool iteration limits: (1) Reset button UI, (2) Backend reset for collections, (3) Backend reset for expenses, (4) Wire button to collections reset, (5) Wire button to expenses reset, (6) Confirmation dialog + feedback",
+    "Draft 50 is the rollback checkpoint — user can say 'revert to draft 50' to restore last stable state"
   ],
   "known_issues": [
-    "Build process hits resource limits on large builds under free plan — must use incremental small changes"
+    "Free plan causes repeated build failures due to tool iteration limits; off-peak hours (2am-7am UTC) recommended for complex builds"
   ],
   "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-in-the-quotations-fund-transaction-rows-within-fundsmanagement-or-the-relevant-fund-transactions-table-add-a-small-attach-pdf-icon-button-on-each-transaction-row-clicking-the-button-opens-a-native-file-picker-restricted-to-pdf-files-only-accept-pdf-no-file-is-uploaded-or-stored-the-file-picker-opens-and-closes-with-no-further-action-this-is-purely-a-ui-change-with-no-backend-interaction",
-      "title": "In the Quotations Fund transaction rows (within FundsManagement or the relevant fund transactions table), add a small 'Attach PDF' icon button on each transaction row. Clicking the button opens a native file picker restricted to PDF files only (accept='.pdf'). No file is uploaded or stored — the file picker opens and closes with no further action. This is purely a UI change with no backend interaction.",
+      "id": "feature-add-a-reset-button-to-the-maintenancemanagement-component-ui-the-button-should-be-visible-only-to-admin-users-consistent-with-the-existing-admin-only-add-maintenance-expense-button-pattern-the-button-should-be-styled-with-a-destructive-warning-style-e-g-red-or-orange-to-indicate-it-is-a-dangerous-action-the-button-should-render-in-the-header-controls-area-of-the-maintenance-management-section-the-button-must-have-no-click-handler-logic-attached-yet-it-should-be-inert-or-log-a-placeholder-console-message-do-not-add-any-backend-calls-or-state-changes",
+      "title": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
       "reqIds": [
         "REQ-1"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-create-a-custom-react-hook-e-g-usepdfattachments-that-wraps-indexeddb-operations-for-storing-retrieving-and-deleting-pdf-files-keyed-by-transaction-id-the-hook-should-expose-savepdf-transactionid-file-getpdf-transactionid-deletepdf-transactionid-and-hasattachment-transactionid-use-the-browser-s-native-indexeddb-api-directly-or-via-a-thin-wrapper-no-backend-interaction",
-      "title": "Create a custom React hook (e.g., `usePdfAttachments`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID. The hook should expose: `savePdf(transactionId, file)`, `getPdf(transactionId)`, `deletePdf(transactionId)`, and `hasAttachment(transactionId)`. Use the browser's native IndexedDB API directly or via a thin wrapper. No backend interaction.",
-      "reqIds": [
-        "REQ-2"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-wire-the-existing-attach-pdf-button-to-call-savepdf-transactionid-file-from-the-usepdfattachments-hook-after-the-user-selects-a-pdf-via-the-file-picker-the-file-should-be-stored-in-indexeddb-immediately-upon-selection",
-      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, wire the existing 'Attach PDF' button to call `savePdf(transactionId, file)` from the `usePdfAttachments` hook after the user selects a PDF via the file picker. The file should be stored in IndexedDB immediately upon selection.",
-      "reqIds": [
-        "REQ-3"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-display-a-visual-indicator-paperclip-icon-or-green-checkmark-on-rows-where-a-pdf-has-been-stored-in-indexeddb-use-hasattachment-transactionid-from-the-usepdfattachments-hook-to-determine-which-rows-show-the-indicator-the-indicator-should-update-reactively-after-a-file-is-attached",
-      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, display a visual indicator (paperclip icon or green checkmark) on rows where a PDF has been stored in IndexedDB. Use `hasAttachment(transactionId)` from the `usePdfAttachments` hook to determine which rows show the indicator. The indicator should update reactively after a file is attached.",
-      "reqIds": [
-        "REQ-4"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-add-a-view-button-that-appears-only-on-rows-with-an-attached-pdf-clicking-view-retrieves-the-blob-from-indexeddb-using-getpdf-transactionid-creates-an-object-url-and-opens-the-pdf-in-a-new-browser-tab",
-      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, add a 'View' button that appears only on rows with an attached PDF. Clicking 'View' retrieves the Blob from IndexedDB using `getPdf(transactionId)`, creates an object URL, and opens the PDF in a new browser tab.",
-      "reqIds": [
-        "REQ-5"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-in-the-quotations-fund-transaction-rows-inside-fundsmanagement-tsx-add-a-download-button-that-appears-only-on-rows-with-an-attached-pdf-clicking-download-retrieves-the-blob-from-indexeddb-using-getpdf-transactionid-creates-a-temporary-anchor-element-and-triggers-a-browser-download-of-the-pdf-file-so-the-user-can-save-it-locally-and-share-it-with-a-colleague",
-      "title": "In the Quotations Fund transaction rows inside `FundsManagement.tsx`, add a 'Download' button that appears only on rows with an attached PDF. Clicking 'Download' retrieves the Blob from IndexedDB using `getPdf(transactionId)`, creates a temporary anchor element, and triggers a browser download of the PDF file so the user can save it locally and share it with a colleague.",
-      "reqIds": [
-        "REQ-6"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-audit-frontend-src-hooks-useactor-ts-and-all-related-canister-configuration-sources-canister-ids-json-dfx-json-vite-config-ts-and-any-env-env-production-files-to-identify-exactly-which-canister-id-the-frontend-is-resolving-at-runtime-for-the-dronewash-backend-canister-compare-it-against-the-actual-deployed-canister-id-recorded-in-canister-ids-json-ic-network-entry-fix-any-mismatch-in-environment-variable-names-variable-injection-in-vite-config-ts-or-fallback-logic-in-useactor-ts-so-the-frontend-correctly-uses-the-deployed-production-canister-id-the-fix-must-eliminate-the-backend-actor-not-available-please-check-your-connection-backend-connection-failed-error-shown-on-the-live-app",
-      "title": "Audit `frontend/src/hooks/useActor.ts` and all related canister configuration sources (`canister_ids.json`, `dfx.json`, `vite.config.ts`, and any `.env` / `.env.production` files) to identify exactly which canister ID the frontend is resolving at runtime for the DroneWash backend canister. Compare it against the actual deployed canister ID recorded in `canister_ids.json` (ic network entry). Fix any mismatch in environment variable names, variable injection in `vite.config.ts`, or fallback logic in `useActor.ts` so the frontend correctly uses the deployed production canister ID. The fix must eliminate the 'Backend actor not available. Please check your connection.' / 'Backend Connection Failed' error shown on the live app.",
-      "reqIds": [
-        "REQ-9"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-remove-the-attach-pdf-icon-button-from-all-quotations-fund-transaction-rows-in-fundsmanagement-tsx-this-was-the-initial-pdf-ui-change-added-in-the-first-pdf-integration-step",
-      "title": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx. This was the initial PDF UI change added in the first PDF integration step.",
-      "reqIds": [
-        "REQ-10"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-delete-the-usepdfattachments-custom-react-hook-file-frontend-src-hooks-usepdfattachments-ts-that-wraps-indexeddb-operations-for-storing-retrieving-and-deleting-pdf-files-keyed-by-transaction-id",
-      "title": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID.",
-      "reqIds": [
-        "REQ-11"
-      ],
-      "version": 1
-    },
-    {
-      "id": "feature-remove-all-usepdfattachments-hook-wiring-from-fundsmanagement-tsx-specifically-the-savepdf-call-on-file-selection-the-hasattachment-based-visual-indicator-paperclip-icon-or-green-checkmark-the-view-button-that-opens-a-pdf-in-a-new-tab-and-the-download-button-that-triggers-a-browser-file-download-the-transaction-rows-must-be-restored-to-their-pre-pdf-state-with-no-pdf-related-ui-or-logic",
-      "title": "Remove all usePdfAttachments hook wiring from FundsManagement.tsx — specifically the savePdf call on file selection, the hasAttachment-based visual indicator (paperclip icon or green checkmark), the 'View' button that opens a PDF in a new tab, and the 'Download' button that triggers a browser file download. The transaction rows must be restored to their pre-PDF state with no PDF-related UI or logic.",
-      "reqIds": [
-        "REQ-12"
       ],
       "version": 1
     }
   ],
   "new_feature_requests": [
     {
-      "id": "AR-4",
-      "summary": "Revert any canister ID audit changes made to `vite.config.ts`, `.env`, `.env.production`, and the fallback logic in the canister resolution layer (but NOT `frontend/src/hooks/useActor.ts` which is immutable). Restore these files to the exact state they were in at v44 — the stable baseline before the canister audit work began in v45.",
-      "reqIds": [
-        "REQ-13"
-      ],
+      "id": "AR-1",
+      "summary": "Delete and edit entries on maintenance fund ledger",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-2",
+      "summary": "Reset button for maintenance management to clear total collections and total expenses",
+      "reqIds": [],
       "status": "pending"
     }
   ],
   "gameProjectType": "none",
-  "projectName": "DroneWash QuotePro",
+  "projectName": "DroneWash Dashboard",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

@@ -2,10 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-remove-the-attach-pdf-icon-button-from-all-quotations-fund-transaction-rows-in-fundsmanagement-tsx-this-was-the-initial-pdf-ui-change-added-in-the-first-pdf-integration-step",
-      "featureTitle": "Remove the 'Attach PDF' icon button from all Quotations Fund transaction rows in FundsManagement.tsx. This was the initial PDF UI change added in the first PDF integration step.",
+      "featureId": "feature-add-a-reset-button-to-the-maintenancemanagement-component-ui-the-button-should-be-visible-only-to-admin-users-consistent-with-the-existing-admin-only-add-maintenance-expense-button-pattern-the-button-should-be-styled-with-a-destructive-warning-style-e-g-red-or-orange-to-indicate-it-is-a-dangerous-action-the-button-should-render-in-the-header-controls-area-of-the-maintenance-management-section-the-button-must-have-no-click-handler-logic-attached-yet-it-should-be-inert-or-log-a-placeholder-console-message-do-not-add-any-backend-calls-or-state-changes",
+      "featureTitle": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
       "files": [
-        "frontend/src/components/FundsManagement.tsx"
+        "frontend/src/components/MaintenanceManagement.tsx"
       ],
       "components": [
         "authorization@1.0.1",
@@ -17,47 +17,7 @@
         "github-export-icp-cli@1.0.0"
       ],
       "testIds": [
-        "REQ-10"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-delete-the-usepdfattachments-custom-react-hook-file-frontend-src-hooks-usepdfattachments-ts-that-wraps-indexeddb-operations-for-storing-retrieving-and-deleting-pdf-files-keyed-by-transaction-id",
-      "featureTitle": "Delete the `usePdfAttachments` custom React hook file (`frontend/src/hooks/usePdfAttachments.ts`) that wraps IndexedDB operations for storing, retrieving, and deleting PDF files keyed by transaction ID.",
-      "files": [
-        "frontend/src/hooks/usePdfAttachments.ts"
-      ],
-      "components": [
-        "authorization@1.0.1",
-        "blob-storage@2.0.3",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-11"
-      ],
-      "confidence": "high"
-    },
-    {
-      "featureId": "feature-remove-all-usepdfattachments-hook-wiring-from-fundsmanagement-tsx-specifically-the-savepdf-call-on-file-selection-the-hasattachment-based-visual-indicator-paperclip-icon-or-green-checkmark-the-view-button-that-opens-a-pdf-in-a-new-tab-and-the-download-button-that-triggers-a-browser-file-download-the-transaction-rows-must-be-restored-to-their-pre-pdf-state-with-no-pdf-related-ui-or-logic",
-      "featureTitle": "Remove all usePdfAttachments hook wiring from FundsManagement.tsx — specifically the savePdf call on file selection, the hasAttachment-based visual indicator (paperclip icon or green checkmark), the 'View' button that opens a PDF in a new tab, and the 'Download' button that triggers a browser file download. The transaction rows must be restored to their pre-PDF state with no PDF-related UI or logic.",
-      "files": [
-        "frontend/src/components/FundsManagement.tsx"
-      ],
-      "components": [
-        "authorization@1.0.1",
-        "blob-storage@2.0.3",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-12"
+        "REQ-1"
       ],
       "confidence": "high"
     }

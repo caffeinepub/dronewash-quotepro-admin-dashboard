@@ -1,12 +1,12 @@
 # Specification
 
 ## Summary
-**Goal:** Revert the DroneWash QuotePro frontend to the v44 stable baseline by removing all PDF integration code and undoing canister audit configuration changes.
+**Goal:** Add a visible but inert "Reset" button to the MaintenanceManagement component UI, visible only to admin users.
 
 **Planned changes:**
-- Remove the "Attach PDF" icon button and hidden file input from all Quotations Fund transaction rows in `FundsManagement.tsx`
-- Delete the `frontend/src/hooks/usePdfAttachments.ts` hook file entirely
-- Remove all PDF-related UI and logic from `FundsManagement.tsx` (Attach, View, Download buttons; paperclip/checkmark indicators; calls to `savePdf`, `getPdf`, `deletePdf`, `hasAttachment`)
-- Restore `vite.config.ts`, `.env`, and `.env.production` to their v44 state by reverting canister audit changes
+- Add a "Reset" button in the header/controls area of the MaintenanceManagement component, positioned near the existing "Add Maintenance Expense" button
+- Style the button with a destructive/warning appearance (red or orange tones) to indicate a dangerous action
+- Show the button only when the logged-in user is an admin (matching the existing admin-only button pattern)
+- Attach no click handler logic — the button is inert or logs a placeholder console message only
 
-**User-visible outcome:** The app returns to the v44 stable state — no PDF-related controls appear on transaction rows in Funds Management, and canister configuration is restored to its pre-audit baseline so the application functions correctly again.
+**User-visible outcome:** Admin users will see a red/orange "Reset" button in the MaintenanceManagement section. The button is visible but does nothing when clicked. Non-admin users will not see the button.

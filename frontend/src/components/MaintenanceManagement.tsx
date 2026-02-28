@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Wrench, TrendingUp, TrendingDown, Plus, CheckCircle2, Clock } from 'lucide-react';
+import { Wrench, TrendingUp, TrendingDown, Plus, CheckCircle2, Clock, RotateCcw } from 'lucide-react';
 import { useAllMaintenanceExpenses, useAllMaintenanceFundLedgerEntries, useAllFunds } from '@/hooks/useQueries';
 import AddMaintenanceExpenseDialog from './AddMaintenanceExpenseDialog';
 
@@ -39,6 +39,11 @@ export default function MaintenanceManagement({ isAdmin }: MaintenanceManagement
     return `€${amount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
+  const handleReset = () => {
+    // Placeholder — no logic wired yet (Step 1 only)
+    console.log('Reset button clicked - no logic wired yet');
+  };
+
   if (expensesLoading || ledgerLoading) {
     return (
       <section className="space-y-4">
@@ -57,13 +62,23 @@ export default function MaintenanceManagement({ isAdmin }: MaintenanceManagement
       <div className="flex items-center justify-between">
         <h2 className="text-2xl font-bold text-slate-900">Maintenance Management</h2>
         {isAdmin && (
-          <Button 
-            className="gap-2 bg-orange-600 hover:bg-orange-700"
-            onClick={() => setShowAddExpenseDialog(true)}
-          >
-            <Plus className="h-4 w-4" />
-            Log Maintenance Expense
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="destructive"
+              className="gap-2"
+              onClick={handleReset}
+            >
+              <RotateCcw className="h-4 w-4" />
+              Reset Fund
+            </Button>
+            <Button
+              className="gap-2 bg-orange-600 hover:bg-orange-700"
+              onClick={() => setShowAddExpenseDialog(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Log Maintenance Expense
+            </Button>
+          </div>
         )}
       </div>
 
