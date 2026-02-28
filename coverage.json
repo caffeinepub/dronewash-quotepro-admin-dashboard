@@ -1,31 +1,50 @@
 {
   "kind": "coverage_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T08:03:32.016Z",
+  "generatedAt": "2026-02-28T09:50:49.661Z",
   "sources": {
     "buildRequest": true,
     "implementationPlan": true
   },
   "requirements": {
-    "total": 2,
-    "implemented": 0,
+    "total": 3,
+    "implemented": 2,
     "items": [
       {
         "id": "REQ-1",
-        "summary": "Implement an admin-only `resetMaintenanceFund` function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
+        "summary": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
+        "status": "implemented",
+        "plannedFiles": [
+          "frontend/src/components/FinancialMetrics.tsx",
+          "frontend/src/components/MaintenanceManagement.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ],
+        "matchedFiles": [
+          "frontend/src/components/FinancialMetrics.tsx",
+          "frontend/src/hooks/useQueries.ts"
+        ]
+      },
+      {
+        "id": "REQ-2",
+        "summary": "Audit the backend Motoko actor to ensure the Maintenance Fund balance is computed from a single authoritative source (e.g., sum of inflow transactions minus outflow/expense transactions). Remove any separate balance variable that is updated independently and can diverge from the transaction-based calculation.",
         "status": "unknown",
         "plannedFiles": [],
         "matchedFiles": []
       },
       {
-        "id": "REQ-2",
-        "summary": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new `resetMaintenanceFund` backend function via a React Query mutation hook, displaying a success or error toast on completion.",
-        "status": "missing",
+        "id": "REQ-3",
+        "summary": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+        "status": "implemented",
         "plannedFiles": [
           "frontend/src/hooks/useQueries.ts",
-          "frontend/src/components/MaintenanceManagement.tsx"
+          "frontend/src/components/FinancialMetrics.tsx",
+          "frontend/src/components/MaintenanceManagement.tsx",
+          "frontend/src/components/KPIWidgets.tsx"
         ],
-        "matchedFiles": []
+        "matchedFiles": [
+          "frontend/src/hooks/useQueries.ts",
+          "frontend/src/components/FinancialMetrics.tsx"
+        ]
       }
     ]
   },
@@ -34,11 +53,18 @@
     "backend/migration.mo",
     "build-request.json",
     "feature_evidence.json",
+    "frontend-file-summaries.txt",
     "frontend-implementation-plan.json",
+    "frontend/src/App.tsx",
     "frontend/src/backend.d.ts",
     "frontend/src/backend.ts",
+    "frontend/src/components/AddGoalDialog.tsx",
+    "frontend/src/components/DataMigrationHandler.tsx",
+    "frontend/src/components/EditFundDialog.tsx",
+    "frontend/src/components/FinancialMetrics.tsx",
     "frontend/src/declarations/backend.did.d.ts",
     "frontend/src/declarations/backend.did.js",
+    "frontend/src/hooks/useQueries.ts",
     "project_state.json",
     "scratch/component-selection.json",
     "spec.md",

@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, TrendingUp, Target, DollarSign, RefreshCw, Wallet, ChevronDown, ChevronUp, Edit, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFinancialMetrics, useAllFunds, useGetFinancialMetricsDetailed, Fund } from '@/hooks/useQueries';
+import { useFinancialMetrics, useAllFunds, useGetFinancialMetricsDetailed, useGetMaintenanceFundBalance, Fund } from '@/hooks/useQueries';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import EditFundDialog from './EditFundDialog';
@@ -55,20 +55,23 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
   const { data: metrics, isLoading, isError, error, refetch } = useFinancialMetrics();
   const { data: detailedMetrics, refetch: refetchDetailed } = useGetFinancialMetricsDetailed();
   const { data: funds } = useAllFunds();
+  // Canonical maintenance fund balance — computed from ledger on the backend
+  const { data: maintenanceFundBalance, refetch: refetchMaintenanceBalance } = useGetMaintenanceFundBalance();
 
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
   const [editingFund, setEditingFund] = useState<Fund | null>(null);
   const [addingTransactionToFund, setAddingTransactionToFund] = useState<{ id: bigint; name: string } | null>(null);
 
   const fundBalances = useMemo(() => {
-    if (!funds) return { main: 0, maintenance: 0, salaries: 0, investment: 0 };
     return {
-      main: funds.find(f => f.fundType === 'main')?.balance || 0,
-      maintenance: funds.find(f => f.fundType === 'maintenance')?.balance || 0,
-      salaries: funds.find(f => f.fundType === 'salaries')?.balance || 0,
-      investment: funds.find(f => f.fundType === 'investment')?.balance || 0,
+      // Maintenance balance comes exclusively from the dedicated backend query (ledger-derived)
+      maintenance: maintenanceFundBalance ?? 0,
+      // Main and salaries still come from the funds list (they have their own balance tracking)
+      main: funds?.find(f => f.fundType === 'main')?.balance ?? 0,
+      salaries: funds?.find(f => f.fundType === 'salaries')?.balance ?? 0,
+      investment: funds?.find(f => f.fundType === 'investment')?.balance ?? 0,
     };
-  }, [funds]);
+  }, [funds, maintenanceFundBalance]);
 
   const mainFund = useMemo(() => funds?.find(f => f.fundType === 'main'), [funds]);
 
@@ -85,8 +88,8 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
   }, []);
 
   const handleRefresh = useCallback(async () => {
-    await Promise.all([refetch(), refetchDetailed()]);
-  }, [refetch, refetchDetailed]);
+    await Promise.all([refetch(), refetchDetailed(), refetchMaintenanceBalance()]);
+  }, [refetch, refetchDetailed, refetchMaintenanceBalance]);
 
   if (isLoading) {
     return (
@@ -131,6 +134,9 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
   const breakEvenProgress = (metrics?.breakEvenProgress ?? 0) * 100;
   const netProfit = metrics?.netProfit ?? 0;
   const showBreakEvenAlert = breakEvenProgress < 50;
+
+  // Maintenance fund details from the detailed metrics (same ledger source)
+  const maintenanceFundStatus = detailedMetrics?.maintenanceFundStatus;
 
   return (
     <section className="space-y-4">
@@ -340,6 +346,7 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
           isExpanded={expandedCard === 'mainfund'}
           subtitle="Click to manage"
         />
+        {/* Maintenance Fund balance uses the canonical ledger-derived value from getMaintenanceFundBalance() */}
         <MetricCard
           title="Maintenance Fund"
           value={formatCurrency(fundBalances.maintenance)}
@@ -411,8 +418,8 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
         </Card>
       )}
 
-      {/* Maintenance Fund Details */}
-      {expandedCard === 'maintenancefund' && detailedMetrics && (
+      {/* Maintenance Fund Details — uses same ledger-derived data as MaintenanceManagement */}
+      {expandedCard === 'maintenancefund' && (
         <Card className="border-2 border-orange-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
@@ -426,35 +433,80 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }
             <div className="grid gap-4 md:grid-cols-3">
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Current Balance</p>
-                <p className="text-2xl font-bold text-orange-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.balance)}</p>
+                <p className="text-2xl font-bold text-orange-600">
+                  {formatCurrency(maintenanceFundBalance ?? 0)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Collected</p>
-                <p className="text-2xl font-bold text-green-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.totalCollected)}</p>
+                <p className="text-2xl font-bold text-green-600">
+                  {formatCurrency(maintenanceFundStatus?.totalCollected ?? 0)}
+                </p>
               </div>
               <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Spent</p>
-                <p className="text-2xl font-bold text-red-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.totalSpent)}</p>
+                <p className="text-2xl font-bold text-red-600">
+                  {formatCurrency(maintenanceFundStatus?.totalSpent ?? 0)}
+                </p>
               </div>
             </div>
+            {maintenanceFundStatus && maintenanceFundStatus.recentEntries.length > 0 && (
+              <div className="mt-4 rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Purpose</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {[...maintenanceFundStatus.recentEntries]
+                      .sort((a, b) => Number(b.date) - Number(a.date))
+                      .slice(0, 5)
+                      .map((entry) => (
+                        <TableRow key={Number(entry.id)}>
+                          <TableCell className="text-sm">{formatDate(entry.date)}</TableCell>
+                          <TableCell>
+                            <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
+                              entry.transactionType === 'inflow'
+                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400'
+                                : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                            }`}>
+                              {entry.transactionType}
+                            </span>
+                          </TableCell>
+                          <TableCell className="text-sm max-w-[200px] truncate">{entry.purpose}</TableCell>
+                          <TableCell className={`text-right font-semibold ${
+                            entry.transactionType === 'inflow' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                            {entry.transactionType === 'inflow' ? '+' : '-'}{formatCurrency(entry.amount)}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
-      {/* Edit Fund Dialog */}
-      <EditFundDialog
-        open={editingFund !== null}
-        onOpenChange={(open) => { if (!open) setEditingFund(null); }}
-        fund={editingFund}
-      />
-
-      {/* Add Fund Transaction Dialog */}
+      {/* Dialogs */}
+      {editingFund && (
+        <EditFundDialog
+          fund={editingFund}
+          open={!!editingFund}
+          onOpenChange={(open) => { if (!open) setEditingFund(null); }}
+        />
+      )}
       {addingTransactionToFund && (
         <AddFundTransactionDialog
-          open={addingTransactionToFund !== null}
-          onOpenChange={(open) => { if (!open) setAddingTransactionToFund(null); }}
           fundId={addingTransactionToFund.id}
           fundName={addingTransactionToFund.name}
+          open={!!addingTransactionToFund}
+          onOpenChange={(open) => { if (!open) setAddingTransactionToFund(null); }}
         />
       )}
     </section>

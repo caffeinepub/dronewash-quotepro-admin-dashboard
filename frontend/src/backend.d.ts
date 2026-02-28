@@ -71,6 +71,7 @@ export interface Quote {
 export interface DroneWashDashboardInterface {
     addExpense(amount: number, category: string, date: bigint, additionalInfo: string): Promise<bigint>;
     addJob(revenue: number, date: bigint, sector: string, clientName: string, customerInfo: CustomerInfo, cleanProfit: number, costs: number): Promise<bigint>;
+    addMaintenanceFundInflow(amount: number, description: string): Promise<bigint>;
     addMonthlyGoal(month: string, year: bigint, description: string, targetValue: number): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     backupData(): Promise<BackupData>;
@@ -100,6 +101,7 @@ export interface DroneWashDashboardInterface {
     getInternalQuoteView(id: bigint): Promise<InternalQuoteView>;
     getInvoice(id: bigint): Promise<Invoice | null>;
     getJob(id: bigint): Promise<Job | null>;
+    getMaintenanceFundBalance(): Promise<number>;
     getMonthlyExpenses(): Promise<Array<[string, number]>>;
     getMonthlyGoalsByMonthYear(month: string, year: bigint): Promise<Array<MonthlyGoal>>;
     getMonthlyReport(month: string, year: bigint): Promise<MonthlyReport>;

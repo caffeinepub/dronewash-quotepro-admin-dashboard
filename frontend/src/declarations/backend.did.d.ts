@@ -75,6 +75,7 @@ export interface DroneWashDashboard {
     [number, bigint, string, string, CustomerInfo, number, number],
     bigint
   >,
+  'addMaintenanceFundInflow' : ActorMethod<[number, string], bigint>,
   'addMonthlyGoal' : ActorMethod<[string, bigint, string, number], bigint>,
   'assignCallerUserRole' : ActorMethod<[Principal, UserRole], undefined>,
   'backupData' : ActorMethod<[], BackupData>,
@@ -139,6 +140,7 @@ export interface DroneWashDashboard {
   'getInternalQuoteView' : ActorMethod<[bigint], InternalQuoteView>,
   'getInvoice' : ActorMethod<[bigint], [] | [Invoice]>,
   'getJob' : ActorMethod<[bigint], [] | [Job]>,
+  'getMaintenanceFundBalance' : ActorMethod<[], number>,
   'getMonthlyExpenses' : ActorMethod<[], Array<[string, number]>>,
   'getMonthlyGoalsByMonthYear' : ActorMethod<
     [string, bigint],

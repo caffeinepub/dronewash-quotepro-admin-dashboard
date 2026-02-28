@@ -283,6 +283,7 @@ export const DroneWashDashboard = IDL.Service({
       [IDL.Nat],
       [],
     ),
+  'addMaintenanceFundInflow' : IDL.Func([IDL.Float64, IDL.Text], [IDL.Nat], []),
   'addMonthlyGoal' : IDL.Func(
       [IDL.Text, IDL.Nat, IDL.Text, IDL.Float64],
       [IDL.Nat],
@@ -366,6 +367,7 @@ export const DroneWashDashboard = IDL.Service({
   'getInternalQuoteView' : IDL.Func([IDL.Nat], [InternalQuoteView], ['query']),
   'getInvoice' : IDL.Func([IDL.Nat], [IDL.Opt(Invoice)], ['query']),
   'getJob' : IDL.Func([IDL.Nat], [IDL.Opt(Job)], ['query']),
+  'getMaintenanceFundBalance' : IDL.Func([], [IDL.Float64], ['query']),
   'getMonthlyExpenses' : IDL.Func(
       [],
       [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float64))],
@@ -753,6 +755,11 @@ export const idlFactory = ({ IDL }) => {
         [IDL.Nat],
         [],
       ),
+    'addMaintenanceFundInflow' : IDL.Func(
+        [IDL.Float64, IDL.Text],
+        [IDL.Nat],
+        [],
+      ),
     'addMonthlyGoal' : IDL.Func(
         [IDL.Text, IDL.Nat, IDL.Text, IDL.Float64],
         [IDL.Nat],
@@ -844,6 +851,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'getInvoice' : IDL.Func([IDL.Nat], [IDL.Opt(Invoice)], ['query']),
     'getJob' : IDL.Func([IDL.Nat], [IDL.Opt(Job)], ['query']),
+    'getMaintenanceFundBalance' : IDL.Func([], [IDL.Float64], ['query']),
     'getMonthlyExpenses' : IDL.Func(
         [],
         [IDL.Vec(IDL.Tuple(IDL.Text, IDL.Float64))],

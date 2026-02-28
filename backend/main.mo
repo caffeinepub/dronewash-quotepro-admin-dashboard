@@ -11,11 +11,11 @@ import Int "mo:base/Int";
 import List "mo:base/List";
 
 import AccessControl "authorization/access-control";
-import Migration "migration";
 
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 
+import Migration "migration";
 (with migration = Migration.run)
 persistent actor class DroneWashDashboard() {
   public type CustomerInfo = {
@@ -219,7 +219,6 @@ persistent actor class DroneWashDashboard() {
     id : Nat;
     fundType : FundType;
     name : Text;
-    balance : Float;
     createdDate : Int;
     lastUpdated : Int;
     isActive : Bool;
@@ -510,7 +509,6 @@ persistent actor class DroneWashDashboard() {
 
   let accessControlState = AccessControl.initState();
 
-  // Access Control Functions
   public shared ({ caller }) func initializeAccessControl() : async () {
     AccessControl.initialize(accessControlState, caller);
   };
@@ -548,7 +546,6 @@ persistent actor class DroneWashDashboard() {
     userProfiles := principalMap.put(userProfiles, caller, profile);
   };
 
-  // User Preferences Management
   public shared ({ caller }) func saveUserPreferences(preferences : UserPreferences) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only users can save preferences");
@@ -563,7 +560,6 @@ persistent actor class DroneWashDashboard() {
     principalMap.get(userPreferences, caller);
   };
 
-  // Helper function to get or create maintenance fund
   func getOrCreateMaintenanceFund() : Nat {
     for ((id, fund) in natMap.entries(funds)) {
       switch (fund.fundType) {
@@ -577,7 +573,6 @@ persistent actor class DroneWashDashboard() {
       id;
       fundType = #maintenance;
       name = "Maintenance Fund";
-      balance = 0.0;
       createdDate = Time.now();
       lastUpdated = Time.now();
       isActive = true;
@@ -589,7 +584,6 @@ persistent actor class DroneWashDashboard() {
     id;
   };
 
-  // Helper function to get or create investment fund
   func getOrCreateInvestmentFund() : Nat {
     for ((id, fund) in natMap.entries(funds)) {
       switch (fund.fundType) {
@@ -603,7 +597,6 @@ persistent actor class DroneWashDashboard() {
       id;
       fundType = #investment;
       name = "Investment Fund";
-      balance = 85000.0;
       createdDate = Time.now();
       lastUpdated = Time.now();
       isActive = true;
@@ -615,162 +608,138 @@ persistent actor class DroneWashDashboard() {
     id;
   };
 
-  // Helper function to add 5% to maintenance fund from job revenue
   func addMaintenanceFundAllocation(jobId : Nat, revenue : Float) : () {
     let maintenanceFundId = getOrCreateMaintenanceFund();
     let maintenanceAmount = revenue * 0.05;
 
-    switch (natMap.get(funds, maintenanceFundId)) {
-      case (?fund) {
-        let newBalance = fund.balance + maintenanceAmount;
-
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = newBalance;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive = fund.isActive;
-          spendingLimit = fund.spendingLimit;
-          approvalThreshold = fund.approvalThreshold;
-        };
-        funds := natMap.put(funds, maintenanceFundId, updatedFund);
-
-        let ledgerId = nextId;
-        let ledgerEntry : MaintenanceFundLedger = {
-          id = ledgerId;
-          date = Time.now();
-          amount = maintenanceAmount;
-          transactionType = "inflow";
-          purpose = "5% automatic collection from job revenue";
-          remainingBalance = newBalance;
-          relatedJobId = ?jobId;
-          relatedExpenseId = null;
-          fundId = maintenanceFundId;
-          fundType = #maintenance;
-        };
-        maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
-        nextId += 1;
-      };
-      case null {};
+    let ledgerId = nextId;
+    let ledgerEntry : MaintenanceFundLedger = {
+      id = ledgerId;
+      date = Time.now();
+      amount = maintenanceAmount;
+      transactionType = "inflow";
+      purpose = "5% automatic collection from job revenue";
+      remainingBalance = 0.0;
+      relatedJobId = ?jobId;
+      relatedExpenseId = null;
+      fundId = maintenanceFundId;
+      fundType = #maintenance;
     };
+    maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
+    nextId += 1;
   };
 
-  // Reset Function - Admin only
+  public shared ({ caller }) func addMaintenanceFundInflow(amount : Float, description : Text) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Debug.trap("Unauthorized: Only admins can add maintenance fund inflow");
+    };
+
+    let maintenanceFundId = getOrCreateMaintenanceFund();
+
+    let ledgerId = nextId;
+    let ledgerEntry : MaintenanceFundLedger = {
+      id = ledgerId;
+      date = Time.now();
+      amount;
+      transactionType = "inflow";
+      purpose = description;
+      remainingBalance = 0.0;
+      relatedJobId = null;
+      relatedExpenseId = null;
+      fundId = maintenanceFundId;
+      fundType = #maintenance;
+    };
+    maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
+    nextId += 1;
+
+    ledgerId;
+  };
+
   public shared ({ caller }) func resetMaintenanceFund() : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can reset maintenance fund");
     };
 
-    let maintenanceFundId = getOrCreateMaintenanceFund();
+    maintenanceExpenses := natMap.empty<MaintenanceExpense>();
+    maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
 
-    switch (natMap.get(funds, maintenanceFundId)) {
-      case (?fund) {
-        // Reset fund balance to zero
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = 0.0;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive = fund.isActive;
-          spendingLimit = fund.spendingLimit;
-          approvalThreshold = fund.approvalThreshold;
-        };
-        funds := natMap.put(funds, maintenanceFundId, updatedFund);
-
-        // Reset maintenance expenses and fund ledger
-        maintenanceExpenses := natMap.empty<MaintenanceExpense>();
-        maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
-
-        // Remove maintenance fund transactions and alerts
-        var newFundTransactions = natMap.empty<FundTransaction>();
-        for ((id, tx) in natMap.entries(fundTransactions)) {
-          if (tx.fundId != maintenanceFundId) {
-            newFundTransactions := natMap.put(newFundTransactions, id, tx);
-          };
-        };
-        fundTransactions := newFundTransactions;
-
-        var newFundAlerts = natMap.empty<FundAlert>();
-        for ((id, alert) in natMap.entries(fundAlerts)) {
-          if (alert.fundId != maintenanceFundId) {
-            newFundAlerts := natMap.put(newFundAlerts, id, alert);
-          };
-        };
-        fundAlerts := newFundAlerts;
-      };
-      case null {
-        Debug.trap("Maintenance fund not found");
+    var newFundTransactions = natMap.empty<FundTransaction>();
+    for ((id, tx) in natMap.entries(fundTransactions)) {
+      if (tx.fundType != #maintenance) {
+        newFundTransactions := natMap.put(newFundTransactions, id, tx);
       };
     };
+    fundTransactions := newFundTransactions;
+
+    var newFundAlerts = natMap.empty<FundAlert>();
+    for ((id, alert) in natMap.entries(fundAlerts)) {
+      if (alert.fundType != #maintenance) {
+        newFundAlerts := natMap.put(newFundAlerts, id, alert);
+      };
+    };
+    fundAlerts := newFundAlerts;
   };
 
-  // Safe Fund Reset with Cash-out - Admin only
   public shared ({ caller }) func safeResetMaintenanceFundWithCashout() : async Float {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can safely reset maintenance fund");
     };
 
-    let maintenanceFundId = getOrCreateMaintenanceFund();
+    let currentBalance = calculateMaintenanceFundBalance();
 
-    switch (natMap.get(funds, maintenanceFundId)) {
-      case (?fund) {
-        let currentBalance = fund.balance;
+    let cashoutTransaction : FundTransaction = {
+      id = nextId;
+      fundId = 0;
+      amount = currentBalance;
+      transactionType = "outflow";
+      date = Time.now();
+      description = "Final cash-out during safe reset";
+      category = "cashout";
+      remainingBalance = 0.0;
+      relatedExpenseId = null;
+      relatedJobId = null;
+      fundType = #maintenance;
+    };
+    fundTransactions := natMap.put(fundTransactions, nextId, cashoutTransaction);
+    nextId += 1;
 
-        // Create cash-out transaction
-        let cashoutTransaction : FundTransaction = {
-          id = nextId;
-          fundId = maintenanceFundId;
-          amount = currentBalance;
-          transactionType = "outflow";
-          date = Time.now();
-          description = "Final cash-out during safe reset";
-          category = "cashout";
-          remainingBalance = 0.0;
-          relatedExpenseId = null;
-          relatedJobId = null;
-          fundType = #maintenance;
-        };
-        fundTransactions := natMap.put(fundTransactions, nextId, cashoutTransaction);
-        nextId += 1;
+    maintenanceExpenses := natMap.empty<MaintenanceExpense>();
+    maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
 
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = 0.0;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive = fund.isActive;
-          spendingLimit = fund.spendingLimit;
-          approvalThreshold = fund.approvalThreshold;
-        };
-        funds := natMap.put(funds, maintenanceFundId, updatedFund);
-
-        // Reset maintenance expenses and fund ledger
-        maintenanceExpenses := natMap.empty<MaintenanceExpense>();
-        maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
-
-        var newFundAlerts = natMap.empty<FundAlert>();
-        for ((id, alert) in natMap.entries(fundAlerts)) {
-          if (alert.fundId != maintenanceFundId) {
-            newFundAlerts := natMap.put(newFundAlerts, id, alert);
-          };
-        };
-        fundAlerts := newFundAlerts;
-
-        currentBalance;
-      };
-      case null {
-        Debug.trap("Maintenance fund not found");
+    var newFundAlerts = natMap.empty<FundAlert>();
+    for ((id, alert) in natMap.entries(fundAlerts)) {
+      if (alert.fundType != #maintenance) {
+        newFundAlerts := natMap.put(newFundAlerts, id, alert);
       };
     };
+    fundAlerts := newFundAlerts;
+
+    currentBalance;
   };
 
-  // Job CRUD Operations - Admin only for modifications, users can view
+  func calculateMaintenanceFundBalance() : Float {
+    var totalInflow = 0.0;
+    var totalOutflow = 0.0;
+
+    for (entry in natMap.vals(maintenanceFundLedger)) {
+      if (entry.transactionType == "inflow") {
+        totalInflow += entry.amount;
+      } else {
+        totalOutflow += entry.amount;
+      };
+    };
+
+    totalInflow - totalOutflow;
+  };
+
+  public query ({ caller }) func getMaintenanceFundBalance() : async Float {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Debug.trap("Unauthorized: Only admins can view maintenance fund balance");
+    };
+
+    calculateMaintenanceFundBalance();
+  };
+
   public shared ({ caller }) func addJob(revenue : Float, date : Int, sector : Text, clientName : Text, customerInfo : CustomerInfo, cleanProfit : Float, costs : Float) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can add jobs");
@@ -813,47 +782,26 @@ persistent actor class DroneWashDashboard() {
         jobs := natMap.put(jobs, id, updatedJob);
 
         if (oldJob.revenue != revenue) {
-          let maintenanceFundId = getOrCreateMaintenanceFund();
           let oldMaintenanceAmount = oldJob.revenue * 0.05;
           let newMaintenanceAmount = revenue * 0.05;
           let adjustmentAmount = newMaintenanceAmount - oldMaintenanceAmount;
 
-          switch (natMap.get(funds, maintenanceFundId)) {
-            case (?fund) {
-              let newBalance = fund.balance + adjustmentAmount;
-
-              let updatedFund : Fund = {
-                id = fund.id;
-                fundType = fund.fundType;
-                name = fund.name;
-                balance = newBalance;
-                createdDate = fund.createdDate;
-                lastUpdated = Time.now();
-                isActive = fund.isActive;
-                spendingLimit = fund.spendingLimit;
-                approvalThreshold = fund.approvalThreshold;
-              };
-              funds := natMap.put(funds, maintenanceFundId, updatedFund);
-
-              let ledgerId = nextId;
-              let transactionType = if (adjustmentAmount >= 0.0) { "inflow" } else { "outflow" };
-              let ledgerEntry : MaintenanceFundLedger = {
-                id = ledgerId;
-                date = Time.now();
-                amount = Float.abs(adjustmentAmount);
-                transactionType;
-                purpose = "Adjustment from job revenue update";
-                remainingBalance = newBalance;
-                relatedJobId = ?id;
-                relatedExpenseId = null;
-                fundId = maintenanceFundId;
-                fundType = #maintenance;
-              };
-              maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
-              nextId += 1;
-            };
-            case null {};
+          let ledgerId = nextId;
+          let transactionType = if (adjustmentAmount >= 0.0) { "inflow" } else { "outflow" };
+          let ledgerEntry : MaintenanceFundLedger = {
+            id = ledgerId;
+            date = Time.now();
+            amount = Float.abs(adjustmentAmount);
+            transactionType;
+            purpose = "Adjustment from job revenue update";
+            remainingBalance = 0.0;
+            relatedJobId = ?id;
+            relatedExpenseId = null;
+            fundId = 0;
+            fundType = #maintenance;
           };
+          maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
+          nextId += 1;
         };
       };
       case null {
@@ -883,7 +831,6 @@ persistent actor class DroneWashDashboard() {
     natMap.get(jobs, id);
   };
 
-  // Expense CRUD Operations - Admin only for modifications, users can view
   public shared ({ caller }) func addExpense(amount : Float, category : Text, date : Int, additionalInfo : Text) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can add expenses");
@@ -943,7 +890,6 @@ persistent actor class DroneWashDashboard() {
     natMap.get(expenses, id);
   };
 
-  // Quote CRUD Operations - Admin only for modifications, users can view
   public shared ({ caller }) func createQuote(sector : Text, services : [Service], basePrice : Float, addOns : [Text], volumeDiscount : Float, nightService : Bool, finalPrice : Float, town : Text, subSector : ?Text, customerInfo : CustomerInfo, chargeDescription : Text, vatAmount : Float, grandTotal : Float) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can create quotes");
@@ -1023,7 +969,6 @@ persistent actor class DroneWashDashboard() {
     natMap.get(quotes, id);
   };
 
-  // Internal Quote View for Admins - Admin only
   public query ({ caller }) func getInternalQuoteView(id : Nat) : async InternalQuoteView {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can view internal quote details");
@@ -1063,7 +1008,6 @@ persistent actor class DroneWashDashboard() {
     };
   };
 
-  // Helper functions for cost calculations
   func calculateCOGS(quote : Quote) : Float {
     var total = 0.0;
     for (service in quote.services.vals()) {
@@ -1101,7 +1045,6 @@ persistent actor class DroneWashDashboard() {
     0.0;
   };
 
-  // Invoice CRUD Operations - Admin only for modifications, users can view
   public shared ({ caller }) func createInvoice(customerName : Text, customerEmail : Text, quoteId : Nat, totalAmount : Float) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can create invoices");
@@ -1188,7 +1131,6 @@ persistent actor class DroneWashDashboard() {
     };
   };
 
-  // Contract CRUD Operations - Admin only for modifications, users can view
   public shared ({ caller }) func createContract(contractName : Text, clientName : Text, clientEmail : Text, clientPhone : Text, clientCompany : Text, servicesCovered : [Text], areaTier : Text, agreedPrices : [(Text, Float)], contractStatus : Text, startDate : Int, endDate : ?Int) : async Nat {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can create contracts");
@@ -1293,7 +1235,6 @@ persistent actor class DroneWashDashboard() {
     activeContracts;
   };
 
-  // Service Rate Management - Admin only
   public shared ({ caller }) func setServiceRate(serviceType : Text, areaTier : Text, rate : Float) : async () {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can set service rates");
@@ -1339,7 +1280,6 @@ persistent actor class DroneWashDashboard() {
     result;
   };
 
-  // Financial Metrics and Analytics - Admin only for detailed metrics
   public query ({ caller }) func getFinancialMetrics() : async FinancialMetrics {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can view financial metrics");
@@ -1395,26 +1335,25 @@ persistent actor class DroneWashDashboard() {
     for (fund in natMap.vals(funds)) {
       let recentTransactions = Array.filter<FundTransaction>(
         Iter.toArray(natMap.vals(fundTransactions)),
-        func(t : FundTransaction) : Bool { t.fundId == fund.id }
+        func(t : FundTransaction) : Bool { t.fundId == fund.id },
       );
       let limitedTransactions = if (recentTransactions.size() > 5) {
-        Array.tabulate<FundTransaction>(5, func(i) { recentTransactions[i] })
+        Array.tabulate<FundTransaction>(5, func(i) { recentTransactions[i] });
       } else {
-        recentTransactions
+        recentTransactions;
       };
 
       let balance : FundBalance = {
         fundId = fund.id;
         fundType = fund.fundType;
         name = fund.name;
-        balance = fund.balance;
+        balance = 0.0;
         recentTransactions = limitedTransactions;
       };
       fundBalances := List.push(balance, fundBalances);
     };
 
     var maintenanceFundId : ?Nat = null;
-    var maintenanceBalance = 0.0;
     var totalCollected = 0.0;
     var totalSpent = 0.0;
 
@@ -1422,7 +1361,6 @@ persistent actor class DroneWashDashboard() {
       switch (fund.fundType) {
         case (#maintenance) {
           maintenanceFundId := ?id;
-          maintenanceBalance := fund.balance;
         };
         case _ {};
       };
@@ -1436,14 +1374,16 @@ persistent actor class DroneWashDashboard() {
       };
     };
 
+    let maintenanceBalance = totalCollected - totalSpent;
+
     let recentMaintenanceEntries = Array.filter<MaintenanceFundLedger>(
       Iter.toArray(natMap.vals(maintenanceFundLedger)),
-      func(e : MaintenanceFundLedger) : Bool { true }
+      func(e : MaintenanceFundLedger) : Bool { true },
     );
     let limitedMaintenanceEntries = if (recentMaintenanceEntries.size() > 10) {
-      Array.tabulate<MaintenanceFundLedger>(10, func(i) { recentMaintenanceEntries[i] })
+      Array.tabulate<MaintenanceFundLedger>(10, func(i) { recentMaintenanceEntries[i] });
     } else {
-      recentMaintenanceEntries
+      recentMaintenanceEntries;
     };
 
     let maintenanceFundStatus : MaintenanceFundStatus = {
@@ -1592,7 +1532,6 @@ persistent actor class DroneWashDashboard() {
     projection;
   };
 
-  // Data Backup Functionality - Admin only
   public shared ({ caller }) func backupData() : async BackupData {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can perform backup");
@@ -1620,8 +1559,10 @@ persistent actor class DroneWashDashboard() {
     backup;
   };
 
-  // Standardized Services - All users can view
   public query ({ caller }) func getStandardizedServices() : async [ServiceType] {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
+      Debug.trap("Unauthorized: Only authenticated users can view standardized services");
+    };
     [
       #facadeWallCleaning,
       #fullBuildingCleaning,
@@ -1631,7 +1572,6 @@ persistent actor class DroneWashDashboard() {
     ];
   };
 
-  // Monthly Reporting and Goals - Admin only for modifications, users can view
   public query ({ caller }) func getMonthlyReport(month : Text, year : Nat) : async MonthlyReport {
     if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
       Debug.trap("Unauthorized: Only authenticated users can view monthly reports");

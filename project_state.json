@@ -1,30 +1,42 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "New project",
+  "summary": "Financial management app with multiple fund tracking (Maintenance Fund, Investment Fund, Main Fund). Currently troubleshooting fund synchronization issues between the Maintenance section and the Dashboard display.",
   "architectural_notes": [],
-  "known_issues": [],
-  "isFixRequest": false,
-  "existing_features": [],
-  "new_feature_requests": [
+  "known_issues": [
+    "Fund balance shown on Dashboard (€72,000) does not synchronize with the Maintenance Fund section — possible duplicate data sources or state not shared globally"
+  ],
+  "isFixRequest": true,
+  "existing_features": [
     {
-      "id": "AR-1",
-      "summary": "Implement an admin-only `resetMaintenanceFund` function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
+      "id": "feature-identify-and-eliminate-duplicate-or-conflicting-data-sources-for-the-maintenance-fund-balance-the-dashboard-s-financialmetrics-component-showing-72-200-and-the-maintenancemanagement-component-must-both-read-from-the-exact-same-backend-data-source-the-maintenance-fund-s-computed-balance-derived-from-its-transaction-history-so-both-views-always-show-identical-consistent-values",
+      "title": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
       "reqIds": [
         "REQ-1"
       ],
-      "status": "pending"
+      "version": 1
     },
     {
+      "id": "feature-ensure-the-react-query-cache-keys-used-by-the-dashboard-financialmetrics-and-kpiwidgets-components-and-the-maintenance-section-maintenancemanagement-component-for-the-maintenance-fund-balance-either-share-the-same-query-key-or-are-properly-invalidated-together-when-any-maintenance-fund-mutation-add-inflow-add-expense-reset-occurs",
+      "title": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+      "reqIds": [
+        "REQ-3"
+      ],
+      "version": 1
+    }
+  ],
+  "new_feature_requests": [
+    {
       "id": "AR-2",
-      "summary": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new `resetMaintenanceFund` backend function via a React Query mutation hook, displaying a success or error toast on completion.",
+      "summary": "Audit the backend Motoko actor to ensure the Maintenance Fund balance is computed from a single authoritative source (e.g., sum of inflow transactions minus outflow/expense transactions). Remove any separate balance variable that is updated independently and can diverge from the transaction-based calculation.",
       "reqIds": [
         "REQ-2"
       ],
       "status": "pending"
     }
   ],
-  "projectName": "Implement admin-only resetMaintenanceFund backend function",
+  "gameProjectType": "none",
+  "projectName": "Fix Maintenance Fund balance desynchronization between Dashboard and Maintenance section",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

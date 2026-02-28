@@ -1,56 +1,73 @@
 {
   "kind": "build_request",
-  "title": "Implement admin-only resetMaintenanceFund backend function",
-  "priority": "normal",
+  "title": "Fix Maintenance Fund balance desynchronization between Dashboard and Maintenance section",
+  "priority": "high",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Implement an admin-only `resetMaintenanceFund` function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
-      "target": "backend",
+      "text": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
+      "target": "both",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-recent-1"
         ],
         "quotes": [
-          "great procced to next step"
+          "maintenance fund works on Maintenance section. on dashboard screen still says 72,000. i think our funds do not synchronize or we have duplicates"
         ]
       },
       "acceptanceCriteria": [
-        "A `resetMaintenanceFund` function exists in backend/main.mo",
-        "The function checks that the caller has the admin role; non-admins receive an error response",
-        "Calling the function as an admin resets the maintenance fund balance and clears or archives existing maintenance expense entries as appropriate",
-        "The function returns a success or error variant result"
+        "The Maintenance Fund balance shown on the Dashboard (FinancialMetrics/Financial Overview card) always matches exactly the balance shown in the Maintenance section (MaintenanceManagement component).",
+        "There is only one canonical source of truth for the Maintenance Fund balance — the backend actor's maintenance fund state or transaction-derived calculation.",
+        "No hardcoded or stale fallback values (e.g., 72,000 or 72,200) remain in any frontend component or hook for the Maintenance Fund balance.",
+        "After adding an inflow or expense in the Maintenance section, the Dashboard card also reflects the updated balance without requiring a full page reload."
       ]
     },
     {
       "id": "REQ-2",
-      "text": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new `resetMaintenanceFund` backend function via a React Query mutation hook, displaying a success or error toast on completion.",
-      "target": "frontend",
+      "text": "Audit the backend Motoko actor to ensure the Maintenance Fund balance is computed from a single authoritative source (e.g., sum of inflow transactions minus outflow/expense transactions). Remove any separate balance variable that is updated independently and can diverge from the transaction-based calculation.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-4"
+          "msg-recent-1"
         ],
         "quotes": [
-          "great procced to next step"
+          "i think our funds do not synchronize or we have duplicates"
         ]
       },
       "acceptanceCriteria": [
-        "A `useResetMaintenanceFund` mutation hook is added to frontend/src/hooks/useQueries.ts",
-        "The mutation calls the backend `resetMaintenanceFund` function via the actor",
-        "On success, relevant queries (maintenance fund data) are invalidated and a success toast is shown",
-        "On error, an error toast is shown",
-        "The Reset Fund button in MaintenanceManagement is disabled for non-admin users and shows a loading state while the mutation is in flight"
+        "The backend exposes a single query for the Maintenance Fund balance that is always derived from the same transaction log used by the Maintenance section.",
+        "No duplicate stable variables exist that track the Maintenance Fund balance separately from the transaction history.",
+        "The backend query used by FinancialMetrics/Dashboard returns the same value as the query used by MaintenanceManagement."
+      ]
+    },
+    {
+      "id": "REQ-3",
+      "text": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-recent-1"
+        ],
+        "quotes": [
+          "on dashboard screen still says 72,000. i think our funds do not synchronize"
+        ]
+      },
+      "acceptanceCriteria": [
+        "Mutations in MaintenanceManagement (add inflow, add expense, reset) invalidate all related Dashboard query keys so the Dashboard card updates automatically.",
+        "The Dashboard Maintenance Fund card does not show a stale cached value after a transaction is recorded in the Maintenance section.",
+        "Both components call the same backend query endpoint for the Maintenance Fund balance."
       ]
     }
   ],
   "constraints": [
-    "All Motoko logic must remain in backend/main.mo — do not create additional actor files",
-    "Do not modify any files under frontend/src/hooks/useActor.ts, frontend/src/hooks/useInternetIdentity.ts, frontend/src/main.tsx, or frontend/src/components/ui"
+    "Do not change the overall tab/page structure of the Dashboard or Maintenance section.",
+    "Do not remove or alter existing transaction history displayed in MaintenanceManagement.",
+    "All Motoko logic must remain in the single backend/main.mo actor file."
   ],
   "nonGoals": [
-    "Adding new UI pages or tabs for maintenance management",
-    "Changing the maintenance fund data model beyond what is required for the reset operation",
-    "Implementing any other pending features not related to resetMaintenanceFund"
+    "Adding new fund types or restructuring other funds (Main Fund, Investment Fund).",
+    "Changing the visual design or layout of the Dashboard cards.",
+    "Modifying authentication or access control logic."
   ],
   "imageRequirements": {
     "required": [],

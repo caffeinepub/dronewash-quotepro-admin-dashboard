@@ -154,8 +154,8 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
 
     // Migrate jobs
     for (const job of jobs) {
-      setMigrationStatus((prev) => ({ ...prev, currentItem: `Job: ${job.clientName || 'Unknown'}` }));
       try {
+        setMigrationStatus(prev => ({ ...prev, currentItem: `Job: ${job.clientName || 'Unknown'}` }));
         await addJob.mutateAsync({
           revenue: job.revenue ?? 0,
           date: toNanoseconds(job.date),
@@ -175,13 +175,13 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
       } catch {
         failed++;
       }
-      setMigrationStatus((prev) => ({ ...prev, completed, failed }));
+      setMigrationStatus(prev => ({ ...prev, completed, failed }));
     }
 
     // Migrate expenses
     for (const expense of expenses) {
-      setMigrationStatus((prev) => ({ ...prev, currentItem: `Expense: ${expense.category || 'Unknown'}` }));
       try {
+        setMigrationStatus(prev => ({ ...prev, currentItem: `Expense: ${expense.category || 'Unknown'}` }));
         await addExpense.mutateAsync({
           amount: expense.amount ?? 0,
           category: expense.category ?? 'Other',
@@ -192,13 +192,13 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
       } catch {
         failed++;
       }
-      setMigrationStatus((prev) => ({ ...prev, completed, failed }));
+      setMigrationStatus(prev => ({ ...prev, completed, failed }));
     }
 
     // Migrate quotes
     for (const quote of quotes) {
-      setMigrationStatus((prev) => ({ ...prev, currentItem: `Quote: ${quote.sector || 'Unknown'}` }));
       try {
+        setMigrationStatus(prev => ({ ...prev, currentItem: `Quote: ${quote.sector || 'Unknown'}` }));
         await createQuote.mutateAsync({
           sector: quote.sector ?? 'Unknown',
           services: quote.services ?? [],
@@ -213,7 +213,7 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
             additionalInfo: quote.customerInfo?.additionalInfo ?? '',
             jobType: quote.customerInfo?.jobType ?? '',
             name: quote.customerInfo?.name ?? '',
-            town: quote.customerInfo?.town ?? '',
+            town: quote.customerInfo?.town ?? quote.town ?? '',
             coordinates: quote.customerInfo?.coordinates ?? '',
           },
           chargeDescription: quote.chargeDescription ?? '',
@@ -224,13 +224,13 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
       } catch {
         failed++;
       }
-      setMigrationStatus((prev) => ({ ...prev, completed, failed }));
+      setMigrationStatus(prev => ({ ...prev, completed, failed }));
     }
 
     // Migrate invoices
     for (const invoice of invoices) {
-      setMigrationStatus((prev) => ({ ...prev, currentItem: `Invoice: ${invoice.customerName || 'Unknown'}` }));
       try {
+        setMigrationStatus(prev => ({ ...prev, currentItem: `Invoice: ${invoice.customerName || 'Unknown'}` }));
         await createInvoice.mutateAsync({
           customerName: invoice.customerName ?? 'Unknown',
           customerEmail: invoice.customerEmail ?? '',
@@ -241,114 +241,114 @@ export default function DataMigrationHandler({ onMigrationComplete }: DataMigrat
       } catch {
         failed++;
       }
-      setMigrationStatus((prev) => ({ ...prev, completed, failed }));
+      setMigrationStatus(prev => ({ ...prev, completed, failed }));
     }
 
     // Migrate goals
     for (const goal of goals) {
-      setMigrationStatus((prev) => ({ ...prev, currentItem: `Goal: ${goal.description || 'Unknown'}` }));
       try {
-        // Encode extra fields into description since backend only supports description + targetValue
-        const fullDescription = [
-          goal.description ?? '',
-          goal.targetMetrics ? `[Metrics: ${goal.targetMetrics}]` : '',
-          goal.targetDate ? `[Target Date: ${goal.targetDate}]` : '',
-          goal.milestoneTracking ? `[Milestones: ${goal.milestoneTracking}]` : '',
-        ]
-          .filter(Boolean)
-          .join(' ');
-
+        setMigrationStatus(prev => ({ ...prev, currentItem: `Goal: ${goal.description || 'Unknown'}` }));
         await addGoal.mutateAsync({
           month: goal.month ?? 'January',
-          year: BigInt(goal.year ?? new Date().getFullYear()),
-          description: fullDescription,
+          year: goal.year ?? new Date().getFullYear(), // pass as number; hook converts to BigInt
+          description: goal.description ?? '',
           targetValue: goal.targetValue ?? 0,
         });
         completed++;
       } catch {
         failed++;
       }
-      setMigrationStatus((prev) => ({ ...prev, completed, failed }));
+      setMigrationStatus(prev => ({ ...prev, completed, failed }));
     }
 
-    const finalStatus = failed === 0 ? 'done' : 'error';
-    setMigrationStatus((prev) => ({ ...prev, status: finalStatus, currentItem: '' }));
+    const finalStatus = failed === 0 ? 'done' : completed > 0 ? 'done' : 'error';
+    setMigrationStatus(prev => ({ ...prev, status: finalStatus, currentItem: '' }));
+    setMigrationDone(true);
 
-    if (failed === 0) {
-      toast.success(`Migration complete! ${completed} records migrated successfully.`);
-      // Clear legacy data
-      ['jobs', 'expenses', 'quotes', 'invoices', 'goals'].forEach((key) =>
-        localStorage.removeItem(key)
-      );
-      setHasLegacyData(false);
-      setMigrationDone(true);
-      onMigrationComplete?.();
+    if (completed > 0) {
+      // Clear migrated localStorage keys
+      ['jobs', 'expenses', 'quotes', 'invoices', 'goals'].forEach(key => {
+        localStorage.removeItem(key);
+      });
+      toast.success(`Migration complete: ${completed} items migrated${failed > 0 ? `, ${failed} failed` : ''}.`);
     } else {
-      toast.warning(`Migration completed with ${failed} errors. ${completed} records migrated.`);
+      toast.error('Migration failed. No items were migrated.');
     }
   };
 
-  if (migrationDone || !hasLegacyData) return null;
+  const handleDismiss = () => {
+    onMigrationComplete?.();
+  };
 
-  const progress =
-    migrationStatus.total > 0
-      ? Math.round((migrationStatus.completed / migrationStatus.total) * 100)
-      : 0;
+  if (!hasLegacyData && migrationStatus.status === 'idle') {
+    return null;
+  }
 
   return (
-    <Card className="border-primary/30 bg-primary/5">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Upload className="h-5 w-5 text-primary" />
-          Legacy Data Migration
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Local data from a previous session was detected. Migrate it to the blockchain backend to
-          preserve your records.
-        </p>
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Upload className="h-5 w-5 text-cyan-600" />
+            Data Migration
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {migrationStatus.status === 'idle' && (
+            <>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                Legacy data detected in your browser. Would you like to migrate it to the blockchain backend?
+              </p>
+              <div className="flex gap-3">
+                <Button onClick={startMigration} className="flex-1">
+                  Start Migration
+                </Button>
+                <Button variant="outline" onClick={handleDismiss}>
+                  Skip
+                </Button>
+              </div>
+            </>
+          )}
 
-        {migrationStatus.status === 'running' && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between text-sm">
-              <span className="text-muted-foreground">{migrationStatus.currentItem}</span>
-              <span className="font-medium">
-                {migrationStatus.completed}/{migrationStatus.total}
-              </span>
-            </div>
-            <Progress value={progress} className="h-2" />
-          </div>
-        )}
+          {migrationStatus.status === 'running' && (
+            <>
+              <div className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-400">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span>Migrating: {migrationStatus.currentItem}</span>
+              </div>
+              <Progress
+                value={migrationStatus.total > 0 ? (migrationStatus.completed / migrationStatus.total) * 100 : 0}
+              />
+              <p className="text-xs text-slate-500">
+                {migrationStatus.completed} / {migrationStatus.total} items
+                {migrationStatus.failed > 0 && ` (${migrationStatus.failed} failed)`}
+              </p>
+            </>
+          )}
 
-        {migrationStatus.status === 'done' && (
-          <div className="flex items-center gap-2 text-green-600 text-sm">
-            <CheckCircle className="h-4 w-4" />
-            Migration completed successfully!
-          </div>
-        )}
-
-        {migrationStatus.status === 'error' && (
-          <div className="flex items-center gap-2 text-destructive text-sm">
-            <AlertCircle className="h-4 w-4" />
-            Migration completed with {migrationStatus.failed} errors.
-          </div>
-        )}
-
-        {migrationStatus.status === 'idle' && (
-          <Button onClick={startMigration} size="sm" className="w-full">
-            <Upload className="h-4 w-4 mr-2" />
-            Start Migration
-          </Button>
-        )}
-
-        {migrationStatus.status === 'running' && (
-          <Button disabled size="sm" className="w-full">
-            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-            Migrating...
-          </Button>
-        )}
-      </CardContent>
-    </Card>
+          {(migrationStatus.status === 'done' || migrationStatus.status === 'error') && (
+            <>
+              <div className="flex items-center gap-2">
+                {migrationStatus.status === 'done' ? (
+                  <CheckCircle className="h-5 w-5 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-5 w-5 text-red-600" />
+                )}
+                <span className="text-sm font-medium">
+                  {migrationStatus.status === 'done' ? 'Migration Complete' : 'Migration Failed'}
+                </span>
+              </div>
+              <p className="text-sm text-slate-600 dark:text-slate-400">
+                {migrationStatus.completed} items migrated successfully
+                {migrationStatus.failed > 0 && `, ${migrationStatus.failed} items failed`}.
+              </p>
+              <Button onClick={handleDismiss} className="w-full">
+                Continue to Dashboard
+              </Button>
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

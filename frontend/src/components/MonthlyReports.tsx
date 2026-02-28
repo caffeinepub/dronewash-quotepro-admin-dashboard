@@ -27,11 +27,9 @@ export default function MonthlyReports({ isAdmin }: MonthlyReportsProps) {
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [showAddGoalDialog, setShowAddGoalDialog] = useState(false);
 
-  // Convert number year to bigint for the hook
-  const selectedYearBigInt = BigInt(selectedYear);
-
-  const { data: monthlyReport, isLoading: reportLoading, isError: reportError } = useMonthlyReport(selectedMonth, selectedYearBigInt);
-  const { data: monthlyGoals, isLoading: goalsLoading } = useMonthlyGoalsByMonthYear(selectedMonth, selectedYearBigInt);
+  // Pass selectedYear as number — hooks accept number and convert to bigint internally
+  const { data: monthlyReport, isLoading: reportLoading, isError: reportError } = useMonthlyReport(selectedMonth, selectedYear);
+  const { data: monthlyGoals, isLoading: goalsLoading } = useMonthlyGoalsByMonthYear(selectedMonth, selectedYear);
 
   const handleExportCSV = () => {
     if (!monthlyReport) return;

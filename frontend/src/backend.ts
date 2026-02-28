@@ -166,6 +166,7 @@ export interface DroneWashDashboardInterface {
     _caffeineStorageUpdateGatewayPrincipals(): Promise<void>;
     addExpense(amount: number, category: string, date: bigint, additionalInfo: string): Promise<bigint>;
     addJob(revenue: number, date: bigint, sector: string, clientName: string, customerInfo: CustomerInfo, cleanProfit: number, costs: number): Promise<bigint>;
+    addMaintenanceFundInflow(amount: number, description: string): Promise<bigint>;
     addMonthlyGoal(month: string, year: bigint, description: string, targetValue: number): Promise<bigint>;
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     backupData(): Promise<BackupData>;
@@ -195,6 +196,7 @@ export interface DroneWashDashboardInterface {
     getInternalQuoteView(id: bigint): Promise<InternalQuoteView>;
     getInvoice(id: bigint): Promise<Invoice | null>;
     getJob(id: bigint): Promise<Job | null>;
+    getMaintenanceFundBalance(): Promise<number>;
     getMonthlyExpenses(): Promise<Array<[string, number]>>;
     getMonthlyGoalsByMonthYear(month: string, year: bigint): Promise<Array<MonthlyGoal>>;
     getMonthlyReport(month: string, year: bigint): Promise<MonthlyReport>;
@@ -494,6 +496,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.addJob(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
+    async addMaintenanceFundInflow(arg0: number, arg1: string): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addMaintenanceFundInflow(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addMaintenanceFundInflow(arg0, arg1);
             return result;
         }
     }
@@ -901,6 +917,20 @@ export class Backend implements backendInterface {
         } else {
             const result = await this.actor.getJob(arg0);
             return from_candid_opt_n49(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async getMaintenanceFundBalance(): Promise<number> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMaintenanceFundBalance();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMaintenanceFundBalance();
+            return result;
         }
     }
     async getMonthlyExpenses(): Promise<Array<[string, number]>> {

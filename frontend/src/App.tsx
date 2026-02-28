@@ -165,38 +165,32 @@ function AppInner() {
     window.location.reload();
   };
 
-  // Still determining auth state
   if (isInitializing) {
     return <LoadingScreen message="Initializing..." />;
   }
 
-  // Not logged in
   if (!isAuthenticated) {
     return <LoginPage />;
   }
 
-  // Actor is being created
   if (actorFetching) {
     return <LoadingScreen message="Connecting to backend..." />;
   }
 
-  // Actor failed to initialize
   if (!actor) {
     return <ConnectionErrorScreen onRetry={handleRetry} />;
   }
 
-  // Profile is loading after actor is ready
   if (profileLoading) {
     return <LoadingScreen message="Loading your dashboard..." />;
   }
 
-  // Profile query errored (backend unreachable)
   if (profileError && !profileLoading) {
     return <ConnectionErrorScreen onRetry={handleRetry} />;
   }
 
-  // Provide a safe default for userRole if still loading
-  const resolvedRole: UserRole = userRole ?? UserRole.user;
+  // userRole is a string from the backend query; cast to UserRole enum safely
+  const resolvedRole: UserRole = (userRole as UserRole) ?? UserRole.user;
 
   return (
     <>

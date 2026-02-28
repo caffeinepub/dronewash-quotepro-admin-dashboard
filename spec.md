@@ -1,11 +1,13 @@
 # Specification
 
 ## Summary
-**Goal:** Implement an admin-only `resetMaintenanceFund` backend function and wire it to the existing Reset Fund button in the frontend.
+**Goal:** Fix the Maintenance Fund balance desynchronization between the Dashboard and the Maintenance section so both always display the same value from a single source of truth.
 
 **Planned changes:**
-- Add a `resetMaintenanceFund` function in `backend/main.mo` that verifies the caller has the admin role, resets the maintenance fund balance, clears or archives maintenance expense entries, and returns a success/error result
-- Add a `useResetMaintenanceFund` mutation hook in `frontend/src/hooks/useQueries.ts` that calls the backend function, invalidates relevant queries on success, and shows a success or error toast
-- Wire the existing Reset Fund button in the `MaintenanceManagement` component to use the new mutation hook, disabling it for non-admins and showing a loading state while the mutation is in flight
+- Audit the backend Motoko actor to ensure the Maintenance Fund balance is computed solely from its transaction history (inflows minus expenses), removing any separate balance variable that can diverge.
+- Update the backend to expose a single query for the Maintenance Fund balance derived from the same transaction log used by both the Dashboard and the Maintenance section.
+- Remove all hardcoded or stale fallback values (e.g., €72,000 or €72,200) from frontend components and hooks.
+- Align React Query cache keys so the Dashboard (FinancialMetrics/KPIWidgets) and MaintenanceManagement both use the same query key for the Maintenance Fund balance.
+- Ensure that mutations in MaintenanceManagement (add inflow, add expense, reset) invalidate all related Dashboard query keys so the Dashboard updates automatically without a full page reload.
 
-**User-visible outcome:** Admin users can click the Reset Fund button in the Maintenance Management page to reset the maintenance fund balance, receiving a success or error notification; non-admin users see the button disabled.
+**User-visible outcome:** After recording any transaction in the Maintenance section, the Maintenance Fund balance on the Dashboard instantly reflects the same updated value, eliminating the discrepancy between the two screens.

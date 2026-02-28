@@ -90,7 +90,6 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
       const timestamp = new Date(timestampMs).toLocaleString();
       const versionId = `backup-${Date.now()}`;
 
-      // Save to localStorage
       try {
         const existing = JSON.parse(localStorage.getItem('droneWashBackupVersions') || '[]');
         existing.push({
@@ -106,8 +105,9 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
       toast.success('Backup created successfully', {
         description: `Version ID: ${versionId} | ${timestamp}`,
       });
-    } catch (err: any) {
-      toast.error(err?.message ?? 'Backup failed');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Backup failed';
+      toast.error(msg);
     }
   }, [backupMutation]);
 
@@ -128,7 +128,6 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
     { id: 'settings', label: 'Settings', icon: Settings, adminOnly: true },
   ].filter((tab) => !tab.adminOnly || isAdmin);
 
-  // Simple inline spinner for Suspense fallbacks
   const Spinner = () => (
     <div className="flex items-center justify-center py-12">
       <LoadingPanel message="Loading..." />
@@ -215,7 +214,11 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
           <div className="mb-6 overflow-x-auto">
             <TabsList className="flex h-auto gap-1 bg-muted p-1 w-max">
               {tabs.map((tab) => (
-                <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5 text-xs whitespace-nowrap">
+                <TabsTrigger
+                  key={tab.id}
+                  value={tab.id}
+                  className="gap-1.5 text-xs whitespace-nowrap"
+                >
                   <tab.icon className="h-3.5 w-3.5" />
                   {tab.label}
                 </TabsTrigger>
@@ -287,7 +290,7 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
           {isAdmin && (
             <TabsContent value="maintenance">
               <Suspense fallback={<Spinner />}>
-                <MaintenanceManagement isAdmin={isAdmin} />
+                <MaintenanceManagement />
               </Suspense>
             </TabsContent>
           )}
@@ -337,13 +340,15 @@ export default function Dashboard({ onLogout, userProfile, userRole }: Dashboard
       <footer className="border-t border-border mt-12 py-6">
         <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
           <p>
-            © {new Date().getFullYear()} DroneWash QuotePro. Built with{' '}
+            © {new Date().getFullYear()} DroneWash Dashboard. Built with{' '}
             <span className="text-red-500">♥</span> using{' '}
             <a
-              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== 'undefined' ? window.location.hostname : 'dronewash')}`}
+              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(
+                typeof window !== 'undefined' ? window.location.hostname : 'dronewash'
+              )}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="underline hover:text-foreground"
+              className="text-primary hover:underline"
             >
               caffeine.ai
             </a>

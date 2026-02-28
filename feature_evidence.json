@@ -1,4 +1,47 @@
 {
   "kind": "feature_evidence_report",
-  "features": []
+  "features": [
+    {
+      "featureId": "feature-identify-and-eliminate-duplicate-or-conflicting-data-sources-for-the-maintenance-fund-balance-the-dashboard-s-financialmetrics-component-showing-72-200-and-the-maintenancemanagement-component-must-both-read-from-the-exact-same-backend-data-source-the-maintenance-fund-s-computed-balance-derived-from-its-transaction-history-so-both-views-always-show-identical-consistent-values",
+      "featureTitle": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
+      "files": [
+        "frontend/src/components/FinancialMetrics.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-1"
+      ],
+      "confidence": "high"
+    },
+    {
+      "featureId": "feature-ensure-the-react-query-cache-keys-used-by-the-dashboard-financialmetrics-and-kpiwidgets-components-and-the-maintenance-section-maintenancemanagement-component-for-the-maintenance-fund-balance-either-share-the-same-query-key-or-are-properly-invalidated-together-when-any-maintenance-fund-mutation-add-inflow-add-expense-reset-occurs",
+      "featureTitle": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+      "files": [
+        "frontend/src/components/FinancialMetrics.tsx",
+        "frontend/src/hooks/useQueries.ts"
+      ],
+      "components": [
+        "authorization@1.0.1",
+        "blob-storage@2.0.3",
+        "core-infrastructure@1.0.2",
+        "shadcn-ui@1.0.0",
+        "build-template-react@1.0.0",
+        "initial-app@1.0.0",
+        "github-export-icp-cli@1.0.0"
+      ],
+      "testIds": [
+        "REQ-3"
+      ],
+      "confidence": "high"
+    }
+  ]
 }

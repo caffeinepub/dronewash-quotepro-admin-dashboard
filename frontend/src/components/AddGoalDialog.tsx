@@ -69,7 +69,7 @@ export default function AddGoalDialog({
     try {
       await addGoal.mutateAsync({
         month,
-        year: BigInt(year),
+        year, // pass as number; the hook converts to BigInt internally
         description: fullDescription,
         targetValue: parsedTargetValue,
       });

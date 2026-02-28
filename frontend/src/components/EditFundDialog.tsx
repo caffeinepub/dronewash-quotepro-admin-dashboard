@@ -55,6 +55,7 @@ export default function EditFundDialog({ open, onOpenChange, fund }: EditFundDia
         name,
         spendingLimit: parsedSpendingLimit,
         approvalThreshold: parsedApprovalThreshold,
+        isActive: fund.isActive, // pass through the existing isActive value
       });
       toast.success('Fund updated successfully.');
       onOpenChange(false);
