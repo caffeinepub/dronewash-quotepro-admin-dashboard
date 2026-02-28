@@ -1,166 +1,184 @@
-import { memo, useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
+import { RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Alert, AlertDescription } from '@/components/ui/alert';
-import { BarChart3, TrendingUp, AlertCircle, RefreshCw } from 'lucide-react';
-import { useMonthlyRevenue, useMonthlyExpenses, useProfitProjection } from '@/hooks/useQueries';
 import {
   BarChart,
   Bar,
-  LineChart,
-  Line,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
+  LineChart,
+  Line,
   ResponsiveContainer,
 } from 'recharts';
+import { useGetMonthlyRevenue, useGetMonthlyExpenses, useGetProfitProjection } from '@/hooks/useQueries';
 
-// Memoized chart component for better performance
-const MemoizedBarChart = memo(({ data }: { data: any[] }) => (
-  <ResponsiveContainer width="100%" height={300}>
-    <BarChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" />
-      <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'oklch(var(--foreground))' }} />
-      <YAxis tick={{ fontSize: 12, fill: 'oklch(var(--foreground))' }} />
-      <Tooltip 
-        contentStyle={{ 
-          backgroundColor: 'oklch(var(--card))', 
-          border: '1px solid oklch(var(--border))',
-          borderRadius: '0.5rem'
-        }}
-      />
-      <Legend />
-      <Bar dataKey="revenue" fill="#0891b2" name="Revenue (€)" />
-      <Bar dataKey="expenses" fill="#ef4444" name="Expenses (€)" />
-    </BarChart>
-  </ResponsiveContainer>
-));
+const MemoizedBarChart = memo(function MemoizedBarChart({
+  data,
+}: {
+  data: { month: string; revenue: number; expenses: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <BarChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="month" tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `€${v}`} />
+        <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, '']} />
+        <Legend />
+        <Bar dataKey="revenue" name="Revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+        <Bar dataKey="expenses" name="Expenses" fill="hsl(var(--destructive))" radius={[4, 4, 0, 0]} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+});
 
-MemoizedBarChart.displayName = 'MemoizedBarChart';
-
-const MemoizedLineChart = memo(({ data }: { data: any[] }) => (
-  <ResponsiveContainer width="100%" height={300}>
-    <LineChart data={data}>
-      <CartesianGrid strokeDasharray="3 3" stroke="oklch(var(--border))" />
-      <XAxis dataKey="year" tick={{ fontSize: 12, fill: 'oklch(var(--foreground))' }} />
-      <YAxis tick={{ fontSize: 12, fill: 'oklch(var(--foreground))' }} />
-      <Tooltip 
-        contentStyle={{ 
-          backgroundColor: 'oklch(var(--card))', 
-          border: '1px solid oklch(var(--border))',
-          borderRadius: '0.5rem'
-        }}
-      />
-      <Legend />
-      <Line type="monotone" dataKey="profit" stroke="#10b981" strokeWidth={2} name="Projected Profit (€)" />
-    </LineChart>
-  </ResponsiveContainer>
-));
-
-MemoizedLineChart.displayName = 'MemoizedLineChart';
+const MemoizedLineChart = memo(function MemoizedLineChart({
+  data,
+}: {
+  data: { year: string; profit: number }[];
+}) {
+  return (
+    <ResponsiveContainer width="100%" height={300}>
+      <LineChart data={data} margin={{ top: 5, right: 20, left: 10, bottom: 5 }}>
+        <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+        <XAxis dataKey="year" tick={{ fontSize: 11 }} />
+        <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `€${v}`} />
+        <Tooltip formatter={(value: number) => [`€${value.toFixed(2)}`, 'Projected Profit']} />
+        <Legend />
+        <Line
+          type="monotone"
+          dataKey="profit"
+          name="Projected Profit"
+          stroke="hsl(var(--primary))"
+          strokeWidth={2}
+          dot={{ r: 4 }}
+          activeDot={{ r: 6 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  );
+});
 
 export default function AnalyticsCharts() {
-  const { data: revenueData, isLoading: revenueLoading, isError: revenueError, refetch: refetchRevenue } = useMonthlyRevenue();
-  const { data: expensesData, isLoading: expensesLoading, isError: expensesError, refetch: refetchExpenses } = useMonthlyExpenses();
-  const { data: projectionData, isLoading: projectionLoading, isError: projectionError, refetch: refetchProjection } = useProfitProjection();
+  const {
+    data: monthlyRevenue,
+    isLoading: revenueLoading,
+    isError: revenueError,
+    refetch: refetchRevenue,
+  } = useGetMonthlyRevenue();
 
-  // Memoized data transformations
-  const monthlyData = useMemo(() => {
-    return revenueData?.map(([month, revenue]) => {
-      const expense = expensesData?.find(([m]) => m === month)?.[1] || 0;
-      return {
-        month,
-        revenue,
-        expenses: expense,
-      };
-    }) || [];
-  }, [revenueData, expensesData]);
+  const {
+    data: monthlyExpenses,
+    isLoading: expensesLoading,
+    isError: expensesError,
+    refetch: refetchExpenses,
+  } = useGetMonthlyExpenses();
 
-  const projectionChartData = useMemo(() => {
-    return projectionData?.map(([year, profit]) => ({
-      year: Number(year),
+  const {
+    data: profitProjection,
+    isLoading: projectionLoading,
+    isError: projectionError,
+    refetch: refetchProjection,
+  } = useGetProfitProjection();
+
+  const barChartData = useMemo(() => {
+    if (!monthlyRevenue || !monthlyExpenses) return [];
+    const revenueMap = new Map(monthlyRevenue);
+    const expensesMap = new Map(monthlyExpenses);
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    return months.map((month) => ({
+      month: month.slice(0, 3),
+      revenue: revenueMap.get(month) ?? 0,
+      expenses: expensesMap.get(month) ?? 0,
+    }));
+  }, [monthlyRevenue, monthlyExpenses]);
+
+  const lineChartData = useMemo(() => {
+    if (!profitProjection) return [];
+    return profitProjection.map(([year, profit]) => ({
+      year: year.toString(),
       profit,
-    })) || [];
-  }, [projectionData]);
+    }));
+  }, [profitProjection]);
 
-  const isLoading = revenueLoading || expensesLoading || projectionLoading;
-  const hasError = revenueError || expensesError || projectionError;
-
-  const handleRetryAll = () => {
-    refetchRevenue();
-    refetchExpenses();
-    refetchProjection();
-  };
+  const isBarLoading = revenueLoading || expensesLoading;
+  const isBarError = revenueError || expensesError;
 
   return (
-    <section className="space-y-4">
-      <h2 className="text-2xl font-bold text-slate-900 dark:text-slate-100">Analytics</h2>
-      
-      {hasError && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex items-center justify-between">
-            <span>Failed to load analytics data. Please check your connection and try again.</span>
-            <Button variant="outline" size="sm" onClick={handleRetryAll}>
-              <RefreshCw className="h-4 w-4 mr-2" />
+    <div className="space-y-6">
+      {/* Revenue vs Expenses Bar Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">Revenue vs Expenses (Monthly)</CardTitle>
+          {isBarError && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => {
+                refetchRevenue();
+                refetchExpenses();
+              }}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
               Retry
             </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {/* Monthly Revenue vs Expenses */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-cyan-600" />
-              Monthly Revenue vs Expenses
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex h-[300px] items-center justify-center">
-                <div className="text-slate-500 dark:text-slate-400">Loading chart data...</div>
-              </div>
-            ) : monthlyData.length === 0 ? (
-              <div className="flex h-[300px] items-center justify-center">
-                <div className="text-slate-500 dark:text-slate-400">No data available yet</div>
-              </div>
-            ) : (
-              <MemoizedBarChart data={monthlyData} />
-            )}
-          </CardContent>
-        </Card>
-
-        {/* 3-Year Profit Projection */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-600" />
-              3-Year Profit Projection
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="flex h-[300px] items-center justify-center">
-                <div className="text-slate-500 dark:text-slate-400">Loading projection data...</div>
-              </div>
-            ) : projectionChartData.length === 0 ? (
-              <div className="flex h-[300px] items-center justify-center">
-                <div className="text-slate-500 dark:text-slate-400">No projection data available</div>
-              </div>
-            ) : (
-              <MemoizedLineChart data={projectionChartData} />
-            )}
-            <div className="mt-4 text-xs text-slate-500 dark:text-slate-400">
-              <p>Assumptions: 50% growth in Year 2, 100% growth in Year 3</p>
+          )}
+        </CardHeader>
+        <CardContent>
+          {isBarLoading ? (
+            <div className="flex items-center justify-center h-[300px]">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
-    </section>
+          ) : isBarError ? (
+            <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+              <p>Failed to load chart data.</p>
+            </div>
+          ) : barChartData.every((d) => d.revenue === 0 && d.expenses === 0) ? (
+            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              <p>No data available yet. Add jobs and expenses to see the chart.</p>
+            </div>
+          ) : (
+            <MemoizedBarChart data={barChartData} />
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Profit Projection Line Chart */}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="text-base">3-Year Profit Projection</CardTitle>
+          {projectionError && (
+            <Button size="sm" variant="outline" onClick={() => refetchProjection()}>
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Retry
+            </Button>
+          )}
+        </CardHeader>
+        <CardContent>
+          {projectionLoading ? (
+            <div className="flex items-center justify-center h-[300px]">
+              <RefreshCw className="h-6 w-6 animate-spin text-primary" />
+            </div>
+          ) : projectionError ? (
+            <div className="flex flex-col items-center justify-center h-[300px] text-muted-foreground">
+              <p>Failed to load projection data.</p>
+            </div>
+          ) : lineChartData.length === 0 ? (
+            <div className="flex items-center justify-center h-[300px] text-muted-foreground">
+              <p>No projection data available.</p>
+            </div>
+          ) : (
+            <MemoizedLineChart data={lineChartData} />
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

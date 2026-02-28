@@ -1,44 +1,56 @@
 {
   "kind": "build_request",
-  "title": "Step 1: Add Reset Button UI to Maintenance Management (no logic)",
-  "projectName": "DroneWash Dashboard",
+  "title": "Implement admin-only resetMaintenanceFund backend function",
   "priority": "normal",
   "requirements": [
     {
       "id": "REQ-1",
-      "text": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
-      "target": "frontend",
+      "text": "Implement an admin-only `resetMaintenanceFund` function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
+      "target": "backend",
       "source": {
         "messageIds": [
-          "msg-recent"
+          "msg-4"
         ],
         "quotes": [
-          "Step 1: Reset button UI only — Add a 'Reset' button to the maintenance management section — no logic attached yet, just the visual element."
+          "great procced to next step"
         ]
       },
       "acceptanceCriteria": [
-        "A 'Reset' button is visible in the MaintenanceManagement component when the logged-in user is an admin.",
-        "The button is NOT visible to non-admin (viewer) users.",
-        "The button uses a destructive or warning visual style (red/orange tones) to signal danger.",
-        "The button is placed near the existing admin controls (e.g., next to or below the 'Add Maintenance Expense' button).",
-        "Clicking the button does not trigger any backend call or data mutation — it is a no-op or logs a placeholder console message.",
-        "No new backend functions or mutations are introduced in this step.",
-        "The rest of the MaintenanceManagement UI remains unchanged."
+        "A `resetMaintenanceFund` function exists in backend/main.mo",
+        "The function checks that the caller has the admin role; non-admins receive an error response",
+        "Calling the function as an admin resets the maintenance fund balance and clears or archives existing maintenance expense entries as appropriate",
+        "The function returns a success or error variant result"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "text": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new `resetMaintenanceFund` backend function via a React Query mutation hook, displaying a success or error toast on completion.",
+      "target": "frontend",
+      "source": {
+        "messageIds": [
+          "msg-4"
+        ],
+        "quotes": [
+          "great procced to next step"
+        ]
+      },
+      "acceptanceCriteria": [
+        "A `useResetMaintenanceFund` mutation hook is added to frontend/src/hooks/useQueries.ts",
+        "The mutation calls the backend `resetMaintenanceFund` function via the actor",
+        "On success, relevant queries (maintenance fund data) are invalidated and a success toast is shown",
+        "On error, an error toast is shown",
+        "The Reset Fund button in MaintenanceManagement is disabled for non-admin users and shows a loading state while the mutation is in flight"
       ]
     }
   ],
   "constraints": [
-    "Do not add any backend logic, Motoko functions, or mutations in this step.",
-    "Do not wire the button to any existing or new query/mutation hooks.",
-    "Preserve all existing MaintenanceManagement functionality exactly as-is.",
-    "Do not modify any immutable paths (frontend/src/hooks/useInternetIdentity.ts, frontend/src/hooks/useActor.ts, frontend/src/main.tsx, frontend/src/components/ui)."
+    "All Motoko logic must remain in backend/main.mo — do not create additional actor files",
+    "Do not modify any files under frontend/src/hooks/useActor.ts, frontend/src/hooks/useInternetIdentity.ts, frontend/src/main.tsx, or frontend/src/components/ui"
   ],
   "nonGoals": [
-    "Backend reset function for collections (Step 2).",
-    "Backend reset function for expenses (Step 3).",
-    "Wiring the button to any reset logic (Steps 4 and 5).",
-    "Confirmation dialog or success feedback (Step 6).",
-    "Any changes to other components outside MaintenanceManagement."
+    "Adding new UI pages or tabs for maintenance management",
+    "Changing the maintenance fund data model beyond what is required for the reset operation",
+    "Implementing any other pending features not related to resetMaintenanceFund"
   ],
   "imageRequirements": {
     "required": [],

@@ -1,143 +1,153 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useAddInvestmentFundTransaction } from '@/hooks/useQueries';
-import { toast } from 'sonner';
+import { useAddInvestmentTransaction } from '@/hooks/useQueries';
 
 interface AddInvestmentTransactionDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function AddInvestmentTransactionDialog({ open, onClose }: AddInvestmentTransactionDialogProps) {
+const ALLOCATION_TYPES = [
+  'Equipment Purchase',
+  'Software License',
+  'Training',
+  'Marketing',
+  'Operations',
+  'Research & Development',
+  'Other',
+];
+
+export default function AddInvestmentTransactionDialog({
+  open,
+  onOpenChange,
+}: AddInvestmentTransactionDialogProps) {
   const [amount, setAmount] = useState('');
-  const [transactionType, setTransactionType] = useState<'payment' | 'allocation'>('payment');
+  const [transactionType, setTransactionType] = useState<'inflow' | 'outflow'>('outflow');
   const [allocationType, setAllocationType] = useState('');
   const [description, setDescription] = useState('');
 
-  const { mutate: addTransaction, isPending } = useAddInvestmentFundTransaction();
+  const addTransaction = useAddInvestmentTransaction();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    const amountNum = parseFloat(amount);
-
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount');
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      toast.error('Please enter a valid amount.');
+      return;
+    }
+    if (!allocationType) {
+      toast.error('Please select an allocation type.');
       return;
     }
 
-    if (!allocationType.trim()) {
-      toast.error('Please enter an allocation type');
-      return;
-    }
-
-    if (!description.trim()) {
-      toast.error('Please enter a description');
-      return;
-    }
-
-    addTransaction(
-      {
-        amount: amountNum,
+    try {
+      await addTransaction.mutateAsync({
+        amount: parsedAmount,
         transactionType,
         description: description.trim(),
-        allocationType: allocationType.trim(),
-        relatedExpenseId: null,
-        relatedJobId: null,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Investment transaction added successfully');
-          setAmount('');
-          setTransactionType('payment');
-          setAllocationType('');
-          setDescription('');
-          onClose();
-        },
-        onError: (error) => {
-          toast.error('Failed to add investment transaction', {
-            description: error instanceof Error ? error.message : 'Unknown error',
-          });
-        },
-      }
-    );
+        allocationType,
+      });
+      toast.success('Investment transaction added successfully.');
+      onOpenChange(false);
+      setAmount('');
+      setTransactionType('outflow');
+      setAllocationType('');
+      setDescription('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add transaction';
+      toast.error(message);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add Investment Transaction</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="transactionType">Transaction Type *</Label>
-            <Select value={transactionType} onValueChange={(value) => setTransactionType(value as 'payment' | 'allocation')}>
+            <Label htmlFor="transactionType">Transaction Type</Label>
+            <Select
+              value={transactionType}
+              onValueChange={(v) => setTransactionType(v as 'inflow' | 'outflow')}
+            >
               <SelectTrigger id="transactionType">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="payment">Payment (Outgoing)</SelectItem>
-                <SelectItem value="allocation">Allocation (Incoming)</SelectItem>
+                <SelectItem value="inflow">Payment / Inflow</SelectItem>
+                <SelectItem value="outflow">Allocation / Outflow</SelectItem>
               </SelectContent>
             </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount (€) *</Label>
+            <Label htmlFor="amount">Amount (€)</Label>
             <Input
               id="amount"
               type="number"
               step="0.01"
+              min="0"
+              placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="allocationType">Allocation Type *</Label>
-            <Input
-              id="allocationType"
-              value={allocationType}
-              onChange={(e) => setAllocationType(e.target.value)}
-              placeholder="e.g., Equipment Purchase, Marketing, Operations"
-              required
-            />
+            <Label htmlFor="allocationType">Allocation Type</Label>
+            <Select value={allocationType} onValueChange={setAllocationType}>
+              <SelectTrigger id="allocationType">
+                <SelectValue placeholder="Select allocation type" />
+              </SelectTrigger>
+              <SelectContent>
+                {ALLOCATION_TYPES.map((type) => (
+                  <SelectItem key={type} value={type}>
+                    {type}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Description *</Label>
+            <Label htmlFor="description">Description</Label>
             <Textarea
               id="description"
+              placeholder="Describe the transaction..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detailed description of the transaction..."
-              rows={4}
-              required
+              rows={3}
             />
-          </div>
-
-          <div className="rounded-md bg-purple-50 p-3 text-sm text-purple-900">
-            <p className="font-medium">Note:</p>
-            <p className="mt-1">
-              The Investment Fund is isolated from other operational funds. All transactions are tracked separately 
-              for investment tracking and reporting purposes.
-            </p>
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending} className="bg-purple-600 hover:bg-purple-700">
-              {isPending ? 'Adding...' : 'Add Transaction'}
+            <Button type="submit" disabled={addTransaction.isPending}>
+              {addTransaction.isPending ? 'Adding...' : 'Add Transaction'}
             </Button>
           </DialogFooter>
         </form>

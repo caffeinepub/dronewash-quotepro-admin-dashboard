@@ -1,19 +1,32 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { useSaveUserPreferences, useGetUserPreferences } from '@/hooks/useQueries';
 
 interface UserPreferencesDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function UserPreferencesDialog({ open, onClose }: UserPreferencesDialogProps) {
+export default function UserPreferencesDialog({ open, onOpenChange }: UserPreferencesDialogProps) {
   const { theme, setTheme } = useTheme();
   const { data: preferences } = useGetUserPreferences();
   const { mutate: savePreferences, isPending } = useSaveUserPreferences();
@@ -45,7 +58,7 @@ export default function UserPreferencesDialog({ open, onClose }: UserPreferences
       onSuccess: () => {
         setTheme(darkMode ? 'dark' : 'light');
         toast.success('Preferences saved successfully');
-        onClose();
+        onOpenChange(false);
       },
       onError: (error) => {
         toast.error('Failed to save preferences', {
@@ -56,7 +69,7 @@ export default function UserPreferencesDialog({ open, onClose }: UserPreferences
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>User Preferences</DialogTitle>
@@ -112,7 +125,7 @@ export default function UserPreferencesDialog({ open, onClose }: UserPreferences
                       if (checked) {
                         setMetricFilters([...metricFilters, metric]);
                       } else {
-                        setMetricFilters(metricFilters.filter(m => m !== metric));
+                        setMetricFilters(metricFilters.filter((m) => m !== metric));
                       }
                     }}
                   />
@@ -126,7 +139,7 @@ export default function UserPreferencesDialog({ open, onClose }: UserPreferences
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={isPending}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={isPending}>
             Cancel
           </Button>
           <Button onClick={handleSave} disabled={isPending}>

@@ -11,7 +11,12 @@ import Int "mo:base/Int";
 import List "mo:base/List";
 
 import AccessControl "authorization/access-control";
+import Migration "migration";
 
+import MixinStorage "blob-storage/Mixin";
+import Storage "blob-storage/Storage";
+
+(with migration = Migration.run)
 persistent actor class DroneWashDashboard() {
   public type CustomerInfo = {
     name : Text;
@@ -476,6 +481,9 @@ persistent actor class DroneWashDashboard() {
     createdBy : Principal;
   };
 
+  let storage = Storage.new();
+  include MixinStorage(storage);
+
   transient let natMap = OrderedMap.Make<Nat>(Nat.compare);
   transient let textMap = OrderedMap.Make<Text>(Text.compare);
   transient let principalMap = OrderedMap.Make<Principal>(Principal.compare);
@@ -563,7 +571,7 @@ persistent actor class DroneWashDashboard() {
         case _ {};
       };
     };
-    
+
     let id = nextId;
     let maintenanceFund : Fund = {
       id;
@@ -589,7 +597,7 @@ persistent actor class DroneWashDashboard() {
         case _ {};
       };
     };
-    
+
     let id = nextId;
     let investmentFund : Fund = {
       id;
@@ -611,11 +619,11 @@ persistent actor class DroneWashDashboard() {
   func addMaintenanceFundAllocation(jobId : Nat, revenue : Float) : () {
     let maintenanceFundId = getOrCreateMaintenanceFund();
     let maintenanceAmount = revenue * 0.05;
-    
+
     switch (natMap.get(funds, maintenanceFundId)) {
       case (?fund) {
         let newBalance = fund.balance + maintenanceAmount;
-        
+
         let updatedFund : Fund = {
           id = fund.id;
           fundType = fund.fundType;
@@ -628,7 +636,7 @@ persistent actor class DroneWashDashboard() {
           approvalThreshold = fund.approvalThreshold;
         };
         funds := natMap.put(funds, maintenanceFundId, updatedFund);
-        
+
         let ledgerId = nextId;
         let ledgerEntry : MaintenanceFundLedger = {
           id = ledgerId;
@@ -646,6 +654,119 @@ persistent actor class DroneWashDashboard() {
         nextId += 1;
       };
       case null {};
+    };
+  };
+
+  // Reset Function - Admin only
+  public shared ({ caller }) func resetMaintenanceFund() : async () {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Debug.trap("Unauthorized: Only admins can reset maintenance fund");
+    };
+
+    let maintenanceFundId = getOrCreateMaintenanceFund();
+
+    switch (natMap.get(funds, maintenanceFundId)) {
+      case (?fund) {
+        // Reset fund balance to zero
+        let updatedFund : Fund = {
+          id = fund.id;
+          fundType = fund.fundType;
+          name = fund.name;
+          balance = 0.0;
+          createdDate = fund.createdDate;
+          lastUpdated = Time.now();
+          isActive = fund.isActive;
+          spendingLimit = fund.spendingLimit;
+          approvalThreshold = fund.approvalThreshold;
+        };
+        funds := natMap.put(funds, maintenanceFundId, updatedFund);
+
+        // Reset maintenance expenses and fund ledger
+        maintenanceExpenses := natMap.empty<MaintenanceExpense>();
+        maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
+
+        // Remove maintenance fund transactions and alerts
+        var newFundTransactions = natMap.empty<FundTransaction>();
+        for ((id, tx) in natMap.entries(fundTransactions)) {
+          if (tx.fundId != maintenanceFundId) {
+            newFundTransactions := natMap.put(newFundTransactions, id, tx);
+          };
+        };
+        fundTransactions := newFundTransactions;
+
+        var newFundAlerts = natMap.empty<FundAlert>();
+        for ((id, alert) in natMap.entries(fundAlerts)) {
+          if (alert.fundId != maintenanceFundId) {
+            newFundAlerts := natMap.put(newFundAlerts, id, alert);
+          };
+        };
+        fundAlerts := newFundAlerts;
+      };
+      case null {
+        Debug.trap("Maintenance fund not found");
+      };
+    };
+  };
+
+  // Safe Fund Reset with Cash-out - Admin only
+  public shared ({ caller }) func safeResetMaintenanceFundWithCashout() : async Float {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Debug.trap("Unauthorized: Only admins can safely reset maintenance fund");
+    };
+
+    let maintenanceFundId = getOrCreateMaintenanceFund();
+
+    switch (natMap.get(funds, maintenanceFundId)) {
+      case (?fund) {
+        let currentBalance = fund.balance;
+
+        // Create cash-out transaction
+        let cashoutTransaction : FundTransaction = {
+          id = nextId;
+          fundId = maintenanceFundId;
+          amount = currentBalance;
+          transactionType = "outflow";
+          date = Time.now();
+          description = "Final cash-out during safe reset";
+          category = "cashout";
+          remainingBalance = 0.0;
+          relatedExpenseId = null;
+          relatedJobId = null;
+          fundType = #maintenance;
+        };
+        fundTransactions := natMap.put(fundTransactions, nextId, cashoutTransaction);
+        nextId += 1;
+
+        let updatedFund : Fund = {
+          id = fund.id;
+          fundType = fund.fundType;
+          name = fund.name;
+          balance = 0.0;
+          createdDate = fund.createdDate;
+          lastUpdated = Time.now();
+          isActive = fund.isActive;
+          spendingLimit = fund.spendingLimit;
+          approvalThreshold = fund.approvalThreshold;
+        };
+        funds := natMap.put(funds, maintenanceFundId, updatedFund);
+
+        // Reset maintenance expenses and fund ledger
+        maintenanceExpenses := natMap.empty<MaintenanceExpense>();
+        maintenanceFundLedger := natMap.empty<MaintenanceFundLedger>();
+
+        var newFundAlerts = natMap.empty<FundAlert>();
+        for ((id, alert) in natMap.entries(fundAlerts)) {
+          if (alert.fundId != maintenanceFundId) {
+            newFundAlerts := natMap.put(newFundAlerts, id, alert);
+          };
+        };
+        fundAlerts := newFundAlerts;
+
+        currentBalance;
+      };
+      case null {
+        Debug.trap("Maintenance fund not found");
+      };
     };
   };
 
@@ -667,9 +788,9 @@ persistent actor class DroneWashDashboard() {
     };
     jobs := natMap.put(jobs, id, job);
     nextId += 1;
-    
+
     addMaintenanceFundAllocation(id, revenue);
-    
+
     id;
   };
 
@@ -690,17 +811,17 @@ persistent actor class DroneWashDashboard() {
           costs;
         };
         jobs := natMap.put(jobs, id, updatedJob);
-        
+
         if (oldJob.revenue != revenue) {
           let maintenanceFundId = getOrCreateMaintenanceFund();
           let oldMaintenanceAmount = oldJob.revenue * 0.05;
           let newMaintenanceAmount = revenue * 0.05;
           let adjustmentAmount = newMaintenanceAmount - oldMaintenanceAmount;
-          
+
           switch (natMap.get(funds, maintenanceFundId)) {
             case (?fund) {
               let newBalance = fund.balance + adjustmentAmount;
-              
+
               let updatedFund : Fund = {
                 id = fund.id;
                 fundType = fund.fundType;
@@ -713,7 +834,7 @@ persistent actor class DroneWashDashboard() {
                 approvalThreshold = fund.approvalThreshold;
               };
               funds := natMap.put(funds, maintenanceFundId, updatedFund);
-              
+
               let ledgerId = nextId;
               let transactionType = if (adjustmentAmount >= 0.0) { "inflow" } else { "outflow" };
               let ledgerEntry : MaintenanceFundLedger = {
@@ -1240,12 +1361,12 @@ persistent actor class DroneWashDashboard() {
     if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
       Debug.trap("Unauthorized: Only admins can view detailed financial metrics");
     };
-    
+
     let investmentRemaining = calculateActiveInvestmentRemaining();
     let totalRevenueYTD = calculateTotalRevenue();
     let breakEvenProgress = Float.fromInt(natMap.size(jobs)) / 33.0;
     let netProfit = totalRevenueYTD - calculateTotalExpenses();
-    
+
     var revenueBreakdown = List.nil<JobRevenueEntry>();
     for (job in natMap.vals(jobs)) {
       let entry : JobRevenueEntry = {
@@ -1257,7 +1378,7 @@ persistent actor class DroneWashDashboard() {
       };
       revenueBreakdown := List.push(entry, revenueBreakdown);
     };
-    
+
     var expenseBreakdown = List.nil<ExpenseEntry>();
     for (expense in natMap.vals(expenses)) {
       let entry : ExpenseEntry = {
@@ -1269,7 +1390,7 @@ persistent actor class DroneWashDashboard() {
       };
       expenseBreakdown := List.push(entry, expenseBreakdown);
     };
-    
+
     var fundBalances = List.nil<FundBalance>();
     for (fund in natMap.vals(funds)) {
       let recentTransactions = Array.filter<FundTransaction>(
@@ -1281,7 +1402,7 @@ persistent actor class DroneWashDashboard() {
       } else {
         recentTransactions
       };
-      
+
       let balance : FundBalance = {
         fundId = fund.id;
         fundType = fund.fundType;
@@ -1291,12 +1412,12 @@ persistent actor class DroneWashDashboard() {
       };
       fundBalances := List.push(balance, fundBalances);
     };
-    
+
     var maintenanceFundId : ?Nat = null;
     var maintenanceBalance = 0.0;
     var totalCollected = 0.0;
     var totalSpent = 0.0;
-    
+
     for ((id, fund) in natMap.entries(funds)) {
       switch (fund.fundType) {
         case (#maintenance) {
@@ -1306,7 +1427,7 @@ persistent actor class DroneWashDashboard() {
         case _ {};
       };
     };
-    
+
     for (entry in natMap.vals(maintenanceFundLedger)) {
       if (entry.transactionType == "inflow") {
         totalCollected += entry.amount;
@@ -1314,7 +1435,7 @@ persistent actor class DroneWashDashboard() {
         totalSpent += entry.amount;
       };
     };
-    
+
     let recentMaintenanceEntries = Array.filter<MaintenanceFundLedger>(
       Iter.toArray(natMap.vals(maintenanceFundLedger)),
       func(e : MaintenanceFundLedger) : Bool { true }
@@ -1324,7 +1445,7 @@ persistent actor class DroneWashDashboard() {
     } else {
       recentMaintenanceEntries
     };
-    
+
     let maintenanceFundStatus : MaintenanceFundStatus = {
       fundId = maintenanceFundId;
       balance = maintenanceBalance;
@@ -1332,7 +1453,7 @@ persistent actor class DroneWashDashboard() {
       totalSpent;
       recentEntries = limitedMaintenanceEntries;
     };
-    
+
     {
       investmentRemaining;
       totalRevenueYTD;
@@ -1651,721 +1772,5 @@ persistent actor class DroneWashDashboard() {
     );
     filteredGoals;
   };
-
-  // Investment Fund Management - Admin only for modifications, users can view
-  public shared ({ caller }) func addInvestmentFundTransaction(amount : Float, transactionType : Text, description : Text, allocationType : Text, relatedExpenseId : ?Nat, relatedJobId : ?Nat) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can add investment fund transactions");
-    };
-
-    let investmentFundId = getOrCreateInvestmentFund();
-
-    switch (natMap.get(funds, investmentFundId)) {
-      case (?fund) {
-        let newBalance = if (transactionType == "payment") {
-          fund.balance - amount;
-        } else {
-          fund.balance + amount;
-        };
-
-        let transactionId = nextId;
-        let transaction : InvestmentFundTransaction = {
-          id = transactionId;
-          amount;
-          transactionType;
-          date = Time.now();
-          description;
-          allocationType;
-          remainingBalance = newBalance;
-          relatedExpenseId;
-          relatedJobId;
-        };
-
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = newBalance;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive = fund.isActive;
-          spendingLimit = fund.spendingLimit;
-          approvalThreshold = fund.approvalThreshold;
-        };
-
-        investmentFundTransactions := natMap.put(investmentFundTransactions, transactionId, transaction);
-        funds := natMap.put(funds, investmentFundId, updatedFund);
-        nextId += 1;
-        transactionId;
-      };
-      case null {
-        Debug.trap("Investment fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getInvestmentFund() : async InvestmentFund {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view investment fund");
-    };
-
-    let investmentFundId = getOrCreateInvestmentFund();
-
-    switch (natMap.get(funds, investmentFundId)) {
-      case (?fund) {
-        let transactions = Array.filter<InvestmentFundTransaction>(
-          Iter.toArray(natMap.vals(investmentFundTransactions)),
-          func(transaction : InvestmentFundTransaction) : Bool {
-            true;
-          },
-        );
-
-        {
-          id = fund.id;
-          initialCapital = 85000.0;
-          currentBalance = fund.balance;
-          createdDate = fund.createdDate;
-          lastUpdated = fund.lastUpdated;
-          isActive = fund.isActive;
-          transactions;
-        };
-      };
-      case null {
-        Debug.trap("Investment fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllInvestmentFundTransactions() : async [InvestmentFundTransaction] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view investment fund transactions");
-    };
-    Iter.toArray(natMap.vals(investmentFundTransactions));
-  };
-
-  // Goals and Milestones Management - Admin only for modifications, users can view
-  public shared ({ caller }) func addGoal(description : Text, targetMetrics : Text, targetDate : Int, milestoneTracking : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can add goals");
-    };
-    let id = nextId;
-    let goal : Goal = {
-      id;
-      description;
-      targetMetrics;
-      targetDate;
-      milestoneTracking;
-      achievementStatus = "in progress";
-      progress = 0.0;
-    };
-    goals := natMap.put(goals, id, goal);
-    nextId += 1;
-    id;
-  };
-
-  public shared ({ caller }) func updateGoal(id : Nat, achievementStatus : Text, progress : Float) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can update goals");
-    };
-    switch (natMap.get(goals, id)) {
-      case (?goal) {
-        let updatedGoal : Goal = {
-          id = goal.id;
-          description = goal.description;
-          targetMetrics = goal.targetMetrics;
-          targetDate = goal.targetDate;
-          milestoneTracking = goal.milestoneTracking;
-          achievementStatus;
-          progress;
-        };
-        goals := natMap.put(goals, id, updatedGoal);
-      };
-      case null {
-        Debug.trap("Goal not found");
-      };
-    };
-  };
-
-  public shared ({ caller }) func deleteGoal(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can delete goals");
-    };
-    goals := natMap.delete(goals, id);
-  };
-
-  public query ({ caller }) func getAllGoals() : async [Goal] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view goals");
-    };
-    Iter.toArray(natMap.vals(goals));
-  };
-
-  public query ({ caller }) func getGoal(id : Nat) : async ?Goal {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view goals");
-    };
-    natMap.get(goals, id);
-  };
-
-  // Fund Management - Admin only for modifications, users can view
-  public shared ({ caller }) func createFund(fundType : FundType, name : Text, initialBalance : Float, spendingLimit : Float, approvalThreshold : Float) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can create funds");
-    };
-    let id = nextId;
-    let fund : Fund = {
-      id;
-      fundType;
-      name;
-      balance = initialBalance;
-      createdDate = Time.now();
-      lastUpdated = Time.now();
-      isActive = true;
-      spendingLimit;
-      approvalThreshold;
-    };
-    funds := natMap.put(funds, id, fund);
-    nextId += 1;
-    id;
-  };
-
-  public shared ({ caller }) func updateFund(id : Nat, name : Text, balance : Float, isActive : Bool, spendingLimit : Float, approvalThreshold : Float) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can update funds");
-    };
-    switch (natMap.get(funds, id)) {
-      case (?fund) {
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name;
-          balance;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive;
-          spendingLimit;
-          approvalThreshold;
-        };
-        funds := natMap.put(funds, id, updatedFund);
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public shared ({ caller }) func deleteFund(id : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can delete funds");
-    };
-    funds := natMap.delete(funds, id);
-  };
-
-  public query ({ caller }) func getAllFunds() : async [Fund] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view funds");
-    };
-    Iter.toArray(natMap.vals(funds));
-  };
-
-  public query ({ caller }) func getFund(id : Nat) : async ?Fund {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view funds");
-    };
-    natMap.get(funds, id);
-  };
-
-  // Fund Transaction Management - Admin only for modifications, users can view
-  public shared ({ caller }) func addFundTransaction(fundId : Nat, amount : Float, transactionType : Text, description : Text, category : Text, relatedExpenseId : ?Nat, relatedJobId : ?Nat) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can add fund transactions");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        let newBalance = if (transactionType == "inflow") {
-          fund.balance + amount;
-        } else {
-          fund.balance - amount;
-        };
-
-        let transactionId = nextId;
-        let transaction : FundTransaction = {
-          id = transactionId;
-          fundId;
-          amount;
-          transactionType;
-          date = Time.now();
-          description;
-          category;
-          remainingBalance = newBalance;
-          relatedExpenseId;
-          relatedJobId;
-          fundType = fund.fundType;
-        };
-
-        let updatedFund : Fund = {
-          id = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = newBalance;
-          createdDate = fund.createdDate;
-          lastUpdated = Time.now();
-          isActive = fund.isActive;
-          spendingLimit = fund.spendingLimit;
-          approvalThreshold = fund.approvalThreshold;
-        };
-
-        fundTransactions := natMap.put(fundTransactions, transactionId, transaction);
-        funds := natMap.put(funds, fundId, updatedFund);
-        nextId += 1;
-        transactionId;
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllFundTransactions() : async [FundTransaction] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund transactions");
-    };
-    Iter.toArray(natMap.vals(fundTransactions));
-  };
-
-  public query ({ caller }) func getFundTransactionsByFundId(fundId : Nat) : async [FundTransaction] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund transactions");
-    };
-    let transactions = Array.filter<FundTransaction>(
-      Iter.toArray(natMap.vals(fundTransactions)),
-      func(transaction : FundTransaction) : Bool {
-        transaction.fundId == fundId
-      },
-    );
-    transactions;
-  };
-
-  // Fund Transfer Management - Admin only
-  public shared ({ caller }) func createFundTransfer(sourceFundId : Nat, destinationFundId : Nat, amount : Float, reason : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can create fund transfers");
-    };
-
-    let id = nextId;
-    let transfer : FundTransfer = {
-      id;
-      sourceFundId;
-      destinationFundId;
-      amount;
-      date = Time.now();
-      reason;
-      status = "pending";
-      requestedBy = caller;
-      approvedBy = null;
-      approvalDate = null;
-    };
-    fundTransfers := natMap.put(fundTransfers, id, transfer);
-    nextId += 1;
-    id;
-  };
-
-  public shared ({ caller }) func approveFundTransfer(id : Nat, approve : Bool) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can approve fund transfers");
-    };
-
-    switch (natMap.get(fundTransfers, id)) {
-      case (?transfer) {
-        let status = if (approve) { "approved" } else { "rejected" };
-        let updatedTransfer : FundTransfer = {
-          id = transfer.id;
-          sourceFundId = transfer.sourceFundId;
-          destinationFundId = transfer.destinationFundId;
-          amount = transfer.amount;
-          date = transfer.date;
-          reason = transfer.reason;
-          status;
-          requestedBy = transfer.requestedBy;
-          approvedBy = ?caller;
-          approvalDate = ?Time.now();
-        };
-        fundTransfers := natMap.put(fundTransfers, id, updatedTransfer);
-      };
-      case null {
-        Debug.trap("Fund transfer not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllFundTransfers() : async [FundTransfer] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund transfers");
-    };
-    Iter.toArray(natMap.vals(fundTransfers));
-  };
-
-  public query ({ caller }) func getFundTransfer(id : Nat) : async ?FundTransfer {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund transfers");
-    };
-    natMap.get(fundTransfers, id);
-  };
-
-  // Maintenance Fund Management - Admin only for modifications, users can view
-  public shared ({ caller }) func addMaintenanceExpense(amount : Float, purpose : Text, equipmentType : Text, partCategory : Text, receiptUrl : ?Text, fundId : Nat) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can add maintenance expenses");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        let id = nextId;
-        let expense : MaintenanceExpense = {
-          id;
-          amount;
-          date = Time.now();
-          purpose;
-          equipmentType;
-          partCategory;
-          receiptUrl;
-          fundId;
-          fundType = fund.fundType;
-          approved = false;
-          approvalDate = null;
-          createdBy = caller;
-        };
-        maintenanceExpenses := natMap.put(maintenanceExpenses, id, expense);
-        nextId += 1;
-        id;
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public shared ({ caller }) func approveMaintenanceExpense(id : Nat, approve : Bool) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can approve maintenance expenses");
-    };
-
-    switch (natMap.get(maintenanceExpenses, id)) {
-      case (?expense) {
-        let updatedExpense : MaintenanceExpense = {
-          id = expense.id;
-          amount = expense.amount;
-          date = expense.date;
-          purpose = expense.purpose;
-          equipmentType = expense.equipmentType;
-          partCategory = expense.partCategory;
-          receiptUrl = expense.receiptUrl;
-          fundId = expense.fundId;
-          fundType = expense.fundType;
-          approved = approve;
-          approvalDate = ?Time.now();
-          createdBy = expense.createdBy;
-        };
-        maintenanceExpenses := natMap.put(maintenanceExpenses, id, updatedExpense);
-      };
-      case null {
-        Debug.trap("Maintenance expense not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllMaintenanceExpenses() : async [MaintenanceExpense] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view maintenance expenses");
-    };
-    Iter.toArray(natMap.vals(maintenanceExpenses));
-  };
-
-  public query ({ caller }) func getMaintenanceExpense(id : Nat) : async ?MaintenanceExpense {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view maintenance expenses");
-    };
-    natMap.get(maintenanceExpenses, id);
-  };
-
-  // Maintenance Fund Ledger Management - Admin only for modifications, users can view
-  public shared ({ caller }) func addMaintenanceFundLedgerEntry(amount : Float, transactionType : Text, purpose : Text, fundId : Nat, relatedJobId : ?Nat, relatedExpenseId : ?Nat) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can add maintenance fund ledger entries");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        let newBalance = if (transactionType == "inflow") {
-          fund.balance + amount;
-        } else {
-          fund.balance - amount;
-        };
-
-        let id = nextId;
-        let ledgerEntry : MaintenanceFundLedger = {
-          id;
-          date = Time.now();
-          amount;
-          transactionType;
-          purpose;
-          remainingBalance = newBalance;
-          relatedJobId;
-          relatedExpenseId;
-          fundId;
-          fundType = fund.fundType;
-        };
-        maintenanceFundLedger := natMap.put(maintenanceFundLedger, id, ledgerEntry);
-        nextId += 1;
-        id;
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllMaintenanceFundLedgerEntries() : async [MaintenanceFundLedger] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view maintenance fund ledger entries");
-    };
-    Iter.toArray(natMap.vals(maintenanceFundLedger));
-  };
-
-  public query ({ caller }) func getMaintenanceFundLedgerEntriesByFundId(fundId : Nat) : async [MaintenanceFundLedger] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view maintenance fund ledger entries");
-    };
-    let entries = Array.filter<MaintenanceFundLedger>(
-      Iter.toArray(natMap.vals(maintenanceFundLedger)),
-      func(entry : MaintenanceFundLedger) : Bool {
-        entry.fundId == fundId
-      },
-    );
-    entries;
-  };
-
-  // Fund Analytics and Reporting - Users can view
-  public query ({ caller }) func getFundAnalytics(fundId : Nat) : async FundAnalytics {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund analytics");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        var totalInflow = 0.0;
-        var totalOutflow = 0.0;
-        var transactionCount = 0;
-        var spendingByCategory = List.nil<(Text, Float)>();
-        var monthlyTrends = List.nil<(Text, Float)>();
-
-        for (transaction in natMap.vals(fundTransactions)) {
-          if (transaction.fundId == fundId) {
-            transactionCount += 1;
-            if (transaction.transactionType == "inflow") {
-              totalInflow += transaction.amount;
-            } else {
-              totalOutflow += transaction.amount;
-            };
-          };
-        };
-
-        let netBalance = totalInflow - totalOutflow;
-        let averageTransactionAmount = if (transactionCount > 0) {
-          (totalInflow + totalOutflow) / Float.fromInt(transactionCount);
-        } else {
-          0.0;
-        };
-
-        {
-          fundId = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          totalInflow;
-          totalOutflow;
-          netBalance;
-          transactionCount;
-          averageTransactionAmount;
-          spendingByCategory = List.toArray(spendingByCategory);
-          monthlyTrends = List.toArray(monthlyTrends);
-          year = 2024;
-        };
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getFundReport(fundId : Nat) : async FundReport {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund reports");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        var totalInflow = 0.0;
-        var totalOutflow = 0.0;
-        var transactionCount = 0;
-        var spendingByCategory = List.nil<(Text, Float)>();
-        var monthlyTrends = List.nil<(Text, Float)>();
-
-        for (transaction in natMap.vals(fundTransactions)) {
-          if (transaction.fundId == fundId) {
-            transactionCount += 1;
-            if (transaction.transactionType == "inflow") {
-              totalInflow += transaction.amount;
-            } else {
-              totalOutflow += transaction.amount;
-            };
-          };
-        };
-
-        let netBalance = totalInflow - totalOutflow;
-
-        {
-          fundId = fund.id;
-          fundType = fund.fundType;
-          name = fund.name;
-          balance = fund.balance;
-          totalInflow;
-          totalOutflow;
-          netBalance;
-          transactionCount;
-          spendingByCategory = List.toArray(spendingByCategory);
-          monthlyTrends = List.toArray(monthlyTrends);
-          year = 2024;
-          reportDate = Time.now();
-        };
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllFundReports() : async [FundReport] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund reports");
-    };
-
-    var reports = List.nil<FundReport>();
-
-    for (fund in natMap.vals(funds)) {
-      var totalInflow = 0.0;
-      var totalOutflow = 0.0;
-      var transactionCount = 0;
-      var spendingByCategory = List.nil<(Text, Float)>();
-      var monthlyTrends = List.nil<(Text, Float)>();
-
-      for (transaction in natMap.vals(fundTransactions)) {
-        if (transaction.fundId == fund.id) {
-          transactionCount += 1;
-          if (transaction.transactionType == "inflow") {
-            totalInflow += transaction.amount;
-          } else {
-            totalOutflow += transaction.amount;
-          };
-        };
-      };
-
-      let netBalance = totalInflow - totalOutflow;
-
-      let report : FundReport = {
-        fundId = fund.id;
-        fundType = fund.fundType;
-        name = fund.name;
-        balance = fund.balance;
-        totalInflow;
-        totalOutflow;
-        netBalance;
-        transactionCount;
-        spendingByCategory = List.toArray(spendingByCategory);
-        monthlyTrends = List.toArray(monthlyTrends);
-        year = 2024;
-        reportDate = Time.now();
-      };
-
-      reports := List.push(report, reports);
-    };
-
-    List.toArray(reports);
-  };
-
-  // Fund Alerts Management - Admin only for modifications, users can view
-  public shared ({ caller }) func createFundAlert(fundId : Nat, alertType : Text, threshold : Float, currentValue : Float, message : Text) : async Nat {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can create fund alerts");
-    };
-
-    switch (natMap.get(funds, fundId)) {
-      case (?fund) {
-        let id = nextId;
-        let alert : FundAlert = {
-          id;
-          fundId;
-          fundType = fund.fundType;
-          alertType;
-          threshold;
-          currentValue;
-          message;
-          createdDate = Time.now();
-          isActive = true;
-        };
-        fundAlerts := natMap.put(fundAlerts, id, alert);
-        nextId += 1;
-        id;
-      };
-      case null {
-        Debug.trap("Fund not found");
-      };
-    };
-  };
-
-  public shared ({ caller }) func updateFundAlert(id : Nat, isActive : Bool) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Debug.trap("Unauthorized: Only admins can update fund alerts");
-    };
-
-    switch (natMap.get(fundAlerts, id)) {
-      case (?alert) {
-        let updatedAlert : FundAlert = {
-          id = alert.id;
-          fundId = alert.fundId;
-          fundType = alert.fundType;
-          alertType = alert.alertType;
-          threshold = alert.threshold;
-          currentValue = alert.currentValue;
-          message = alert.message;
-          createdDate = alert.createdDate;
-          isActive;
-        };
-        fundAlerts := natMap.put(fundAlerts, id, updatedAlert);
-      };
-      case null {
-        Debug.trap("Fund alert not found");
-      };
-    };
-  };
-
-  public query ({ caller }) func getAllFundAlerts() : async [FundAlert] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund alerts");
-    };
-    Iter.toArray(natMap.vals(fundAlerts));
-  };
-
-  public query ({ caller }) func getFundAlertsByFundId(fundId : Nat) : async [FundAlert] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Debug.trap("Unauthorized: Only authenticated users can view fund alerts");
-    };
-    let alerts = Array.filter<FundAlert>(
-      Iter.toArray(natMap.vals(fundAlerts)),
-      func(alert : FundAlert) : Bool {
-        alert.fundId == fundId
-      },
-    );
-    alerts;
-  };
 };
+

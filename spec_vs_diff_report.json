@@ -1,14 +1,40 @@
 {
   "kind": "spec_vs_diff_report",
   "version": "1.0",
-  "generatedAt": "2026-02-28T06:50:19.030Z",
-  "summary": "The diff implements REQ-1 correctly. A 'Reset' button has been added to the MaintenanceManagement component, visible only to admin users, styled with a destructive variant (red), placed in the header/controls area next to the existing 'Add Maintenance Expense' button, and wired to a no-op placeholder handler that logs a console message. No backend logic, mutations, or state changes were introduced. All existing functionality appears preserved.",
-  "missing_requirements": [],
-  "hallucinated_features": [],
-  "confidence": 0.97,
+  "generatedAt": "2026-02-28T08:03:32.013Z",
+  "summary": "The diff adds a migration module (backend/migration.mo) and modifies backend/main.mo and project_state.json. The project_state.json marks both requirements as 'pending', and the backend/main.mo is truncated so the resetMaintenanceFund function cannot be confirmed. No frontend changes are present. Neither REQ-1 nor REQ-2 appear to be implemented based on available evidence.",
+  "missing_requirements": [
+    {
+      "id": "REQ-1",
+      "requirement": "Implement an admin-only resetMaintenanceFund function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
+      "reason": "The backend/main.mo diff is truncated and does not show a resetMaintenanceFund function. The project_state.json explicitly marks AR-1 (REQ-1) as pending. No evidence of the function, admin role check, balance reset logic, or success/error result variant is visible.",
+      "evidence": [
+        "backend/main.mo",
+        "project_state.json"
+      ]
+    },
+    {
+      "id": "REQ-2",
+      "requirement": "Wire the existing Reset Fund admin button in the MaintenanceManagement frontend component to call the new resetMaintenanceFund backend function via a React Query mutation hook, displaying a success or error toast on completion.",
+      "reason": "No frontend files were added or modified in the diff. There is no useResetMaintenanceFund hook in frontend/src/hooks/useQueries.ts, no mutation wiring, no toast integration, and no changes to the MaintenanceManagement component. The project_state.json marks AR-2 (REQ-2) as pending.",
+      "evidence": [
+        "project_state.json"
+      ]
+    }
+  ],
+  "hallucinated_features": [
+    {
+      "description": "A new backend/migration.mo module was added defining old/new actor state types and a migration function.",
+      "reason": "The build request does not mention adding a migration module or any migration infrastructure. This file was not requested.",
+      "evidence": [
+        "backend/migration.mo"
+      ]
+    }
+  ],
+  "confidence": 0.85,
   "changed_files": [
-    "frontend-file-summaries.txt",
-    "frontend/src/components/MaintenanceManagement.tsx",
+    "backend/main.mo",
+    "backend/migration.mo",
     "project_state.json"
   ]
 }

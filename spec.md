@@ -1,12 +1,11 @@
 # Specification
 
 ## Summary
-**Goal:** Add a visible but inert "Reset" button to the MaintenanceManagement component UI, visible only to admin users.
+**Goal:** Implement an admin-only `resetMaintenanceFund` backend function and wire it to the existing Reset Fund button in the frontend.
 
 **Planned changes:**
-- Add a "Reset" button in the header/controls area of the MaintenanceManagement component, positioned near the existing "Add Maintenance Expense" button
-- Style the button with a destructive/warning appearance (red or orange tones) to indicate a dangerous action
-- Show the button only when the logged-in user is an admin (matching the existing admin-only button pattern)
-- Attach no click handler logic — the button is inert or logs a placeholder console message only
+- Add a `resetMaintenanceFund` function in `backend/main.mo` that verifies the caller has the admin role, resets the maintenance fund balance, clears or archives maintenance expense entries, and returns a success/error result
+- Add a `useResetMaintenanceFund` mutation hook in `frontend/src/hooks/useQueries.ts` that calls the backend function, invalidates relevant queries on success, and shows a success or error toast
+- Wire the existing Reset Fund button in the `MaintenanceManagement` component to use the new mutation hook, disabling it for non-admins and showing a loading state while the mutation is in flight
 
-**User-visible outcome:** Admin users will see a red/orange "Reset" button in the MaintenanceManagement section. The button is visible but does nothing when clicked. Non-admin users will not see the button.
+**User-visible outcome:** Admin users can click the Reset Fund button in the Maintenance Management page to reset the maintenance fund balance, receiving a success or error notification; non-admin users see the button disabled.

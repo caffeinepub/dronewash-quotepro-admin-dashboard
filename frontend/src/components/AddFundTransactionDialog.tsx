@@ -1,131 +1,134 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2 } from 'lucide-react';
 import { useAddFundTransaction } from '@/hooks/useQueries';
 import { toast } from 'sonner';
 
 interface AddFundTransactionDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   fundId: bigint;
   fundName: string;
-  open: boolean;
-  onClose: () => void;
 }
 
-export default function AddFundTransactionDialog({ fundId, fundName, open, onClose }: AddFundTransactionDialogProps) {
+export default function AddFundTransactionDialog({
+  open,
+  onOpenChange,
+  fundId,
+  fundName,
+}: AddFundTransactionDialogProps) {
   const [amount, setAmount] = useState('');
-  const [transactionType, setTransactionType] = useState<'inflow' | 'outflow'>('inflow');
-  const [description, setDescription] = useState('');
+  const [transactionType, setTransactionType] = useState('inflow');
   const [category, setCategory] = useState('');
+  const [description, setDescription] = useState('');
 
-  const { mutate: addTransaction, isPending } = useAddFundTransaction();
+  const addTransaction = useAddFundTransaction();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     const amountNum = parseFloat(amount);
-
     if (isNaN(amountNum) || amountNum <= 0) {
       toast.error('Please enter a valid amount');
       return;
     }
-
-    if (!category.trim()) {
-      toast.error('Please enter a category');
-      return;
-    }
-
-    addTransaction(
-      {
+    try {
+      await addTransaction.mutateAsync({
         fundId,
         amount: amountNum,
         transactionType,
-        description: description.trim() || `${transactionType} transaction`,
-        category: category.trim(),
-        relatedExpenseId: null,
-        relatedJobId: null,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Transaction added successfully');
-          setAmount('');
-          setDescription('');
-          setCategory('');
-          onClose();
-        },
-        onError: (error) => {
-          toast.error('Failed to add transaction', {
-            description: error instanceof Error ? error.message : 'Unknown error',
-          });
-        },
-      }
-    );
+        description,
+        category,
+      });
+      toast.success('Transaction added successfully');
+      setAmount('');
+      setTransactionType('inflow');
+      setCategory('');
+      setDescription('');
+      onOpenChange(false);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Failed to add transaction');
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Add Transaction to {fundName}</DialogTitle>
+          <DialogTitle>Add Transaction — {fundName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="transactionType">Transaction Type</Label>
-            <Select value={transactionType} onValueChange={(value) => setTransactionType(value as 'inflow' | 'outflow')}>
-              <SelectTrigger id="transactionType">
+            <Label htmlFor="txType">Transaction Type</Label>
+            <Select value={transactionType} onValueChange={setTransactionType}>
+              <SelectTrigger id="txType">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="inflow">Inflow (Add Funds)</SelectItem>
-                <SelectItem value="outflow">Outflow (Spend Funds)</SelectItem>
+                <SelectItem value="inflow">Inflow</SelectItem>
+                <SelectItem value="outflow">Outflow</SelectItem>
               </SelectContent>
             </Select>
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="amount">Amount (€)</Label>
+            <Label htmlFor="txAmount">Amount (€)</Label>
             <Input
-              id="amount"
+              id="txAmount"
               type="number"
+              min="0"
               step="0.01"
+              placeholder="0.00"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
               required
             />
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="category">Category</Label>
+            <Label htmlFor="txCategory">Category</Label>
             <Input
-              id="category"
+              id="txCategory"
+              placeholder="e.g. Operations, Salary, Equipment"
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              placeholder="e.g., Investment, Expense, Transfer"
-              required
             />
           </div>
-
           <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
-            <Textarea
-              id="description"
+            <Label htmlFor="txDescription">Description</Label>
+            <Input
+              id="txDescription"
+              placeholder="Transaction description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Optional description"
-              rows={3}
             />
           </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending} className="bg-cyan-600 hover:bg-cyan-700">
-              {isPending ? 'Adding...' : 'Add Transaction'}
+            <Button type="submit" disabled={addTransaction.isPending}>
+              {addTransaction.isPending ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                  Adding...
+                </>
+              ) : (
+                'Add Transaction'
+              )}
             </Button>
           </DialogFooter>
         </form>

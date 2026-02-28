@@ -1,108 +1,168 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useAddGoal } from '@/hooks/useQueries';
-import { toast } from 'sonner';
 
 interface AddGoalDialogProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
+  defaultMonth?: string;
+  defaultYear?: number;
 }
 
-export default function AddGoalDialog({ open, onClose }: AddGoalDialogProps) {
+export default function AddGoalDialog({
+  open,
+  onOpenChange,
+  defaultMonth,
+  defaultYear,
+}: AddGoalDialogProps) {
+  const currentDate = new Date();
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December',
+  ];
+
   const [description, setDescription] = useState('');
   const [targetMetrics, setTargetMetrics] = useState('');
+  const [targetValue, setTargetValue] = useState('');
   const [targetDate, setTargetDate] = useState('');
   const [milestoneTracking, setMilestoneTracking] = useState('');
+  const [month, setMonth] = useState(defaultMonth || months[currentDate.getMonth()]);
+  const [year, setYear] = useState(defaultYear || currentDate.getFullYear());
 
-  const { mutate: addGoal, isPending } = useAddGoal();
+  const addGoal = useAddGoal();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!description.trim()) {
-      toast.error('Please enter a goal description');
+      toast.error('Please enter a goal description.');
       return;
     }
 
-    if (!targetMetrics.trim()) {
-      toast.error('Please enter target metrics');
+    const parsedTargetValue = parseFloat(targetValue);
+    if (isNaN(parsedTargetValue) || parsedTargetValue < 0) {
+      toast.error('Please enter a valid target value.');
       return;
     }
 
-    if (!targetDate) {
-      toast.error('Please select a target date');
-      return;
+    // Encode extra fields into description for storage
+    const fullDescription = [
+      description.trim(),
+      targetMetrics ? `[Metrics: ${targetMetrics.trim()}]` : '',
+      targetDate ? `[Target Date: ${targetDate}]` : '',
+      milestoneTracking ? `[Milestones: ${milestoneTracking.trim()}]` : '',
+    ]
+      .filter(Boolean)
+      .join(' ');
+
+    try {
+      await addGoal.mutateAsync({
+        month,
+        year: BigInt(year),
+        description: fullDescription,
+        targetValue: parsedTargetValue,
+      });
+      toast.success('Goal added successfully.');
+      onOpenChange(false);
+      setDescription('');
+      setTargetMetrics('');
+      setTargetValue('');
+      setTargetDate('');
+      setMilestoneTracking('');
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to add goal';
+      toast.error(message);
     }
-
-    const targetDateTimestamp = BigInt(new Date(targetDate).getTime() * 1000000);
-
-    addGoal(
-      {
-        description: description.trim(),
-        targetMetrics: targetMetrics.trim(),
-        targetDate: targetDateTimestamp,
-        milestoneTracking: milestoneTracking.trim() || 'No milestones defined',
-      },
-      {
-        onSuccess: () => {
-          toast.success('Goal added successfully');
-          setDescription('');
-          setTargetMetrics('');
-          setTargetDate('');
-          setMilestoneTracking('');
-          onClose();
-        },
-        onError: (error) => {
-          toast.error('Failed to add goal', {
-            description: error instanceof Error ? error.message : 'Unknown error',
-          });
-        },
-      }
-    );
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Add New Goal</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="month">Month</Label>
+              <select
+                id="month"
+                className="w-full border border-input rounded-md px-3 py-2 text-sm bg-background"
+                value={month}
+                onChange={(e) => setMonth(e.target.value)}
+              >
+                {months.map((m) => (
+                  <option key={m} value={m}>{m}</option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="year">Year</Label>
+              <Input
+                id="year"
+                type="number"
+                min="2020"
+                max="2030"
+                value={year}
+                onChange={(e) => setYear(parseInt(e.target.value))}
+              />
+            </div>
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="description">Goal Description *</Label>
             <Textarea
               id="description"
+              placeholder="Describe the goal..."
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="e.g., Achieve €50,000 in monthly revenue"
-              rows={3}
+              rows={2}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="targetMetrics">Target Metrics *</Label>
+            <Label htmlFor="targetMetrics">Target Metrics</Label>
             <Input
               id="targetMetrics"
+              placeholder="e.g. Revenue, Jobs completed..."
               value={targetMetrics}
               onChange={(e) => setTargetMetrics(e.target.value)}
-              placeholder="e.g., €50,000 revenue, 20 jobs completed"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="targetValue">Target Value (€)</Label>
+            <Input
+              id="targetValue"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              value={targetValue}
+              onChange={(e) => setTargetValue(e.target.value)}
               required
             />
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="targetDate">Target Date *</Label>
+            <Label htmlFor="targetDate">Target Date</Label>
             <Input
               id="targetDate"
               type="date"
               value={targetDate}
               onChange={(e) => setTargetDate(e.target.value)}
-              required
             />
           </div>
 
@@ -110,26 +170,19 @@ export default function AddGoalDialog({ open, onClose }: AddGoalDialogProps) {
             <Label htmlFor="milestoneTracking">Milestone Tracking</Label>
             <Textarea
               id="milestoneTracking"
+              placeholder="Describe milestones..."
               value={milestoneTracking}
               onChange={(e) => setMilestoneTracking(e.target.value)}
-              placeholder="e.g., Week 1: 5 jobs, Week 2: 10 jobs, Week 3: 15 jobs, Week 4: 20 jobs"
-              rows={3}
+              rows={2}
             />
           </div>
 
-          <div className="rounded-md bg-blue-50 p-3 text-sm text-blue-900">
-            <p className="font-medium">Note:</p>
-            <p className="mt-1">
-              Goals help track business objectives and milestones. Set clear, measurable targets to monitor progress effectively.
-            </p>
-          </div>
-
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending} className="bg-cyan-600 hover:bg-cyan-700">
-              {isPending ? 'Adding...' : 'Add Goal'}
+            <Button type="submit" disabled={addGoal.isPending}>
+              {addGoal.isPending ? 'Adding...' : 'Add Goal'}
             </Button>
           </DialogFooter>
         </form>

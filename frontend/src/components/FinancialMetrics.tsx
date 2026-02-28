@@ -3,38 +3,36 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { AlertCircle, TrendingUp, Target, DollarSign, RefreshCw, Wallet, ChevronDown, ChevronUp, Edit, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { useFinancialMetrics, useAllFunds } from '@/hooks/useQueries';
+import { useFinancialMetrics, useAllFunds, useGetFinancialMetricsDetailed, Fund } from '@/hooks/useQueries';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
-import { useGetFinancialMetricsDetailed } from '@/hooks/useQueries';
 import EditFundDialog from './EditFundDialog';
 import AddFundTransactionDialog from './AddFundTransactionDialog';
 
 interface FinancialMetricsProps {
   onNavigateToInvestmentFund?: () => void;
+  isAdmin?: boolean;
 }
 
-// Memoized metric card component for better performance
-const MetricCard = memo(({ 
-  title, 
-  value, 
-  icon: Icon, 
-  borderColor, 
-  onClick, 
-  isExpanded, 
-  subtitle 
-}: { 
-  title: string; 
-  value: string; 
-  icon: any; 
-  borderColor: string; 
-  onClick?: () => void; 
-  isExpanded?: boolean; 
+const MetricCard = memo(({
+  title,
+  value,
+  icon: Icon,
+  borderColor,
+  onClick,
+  isExpanded,
+  subtitle,
+}: {
+  title: string;
+  value: string;
+  icon: any;
+  borderColor: string;
+  onClick?: () => void;
+  isExpanded?: boolean;
   subtitle?: string;
 }) => (
-  <Card 
-    className={`border-l-4 ${borderColor} ${onClick ? 'cursor-pointer hover:shadow-md transition-all duration-200' : ''}`} 
+  <Card
+    className={`border-l-4 ${borderColor} ${onClick ? 'cursor-pointer hover:shadow-md transition-all duration-200' : ''}`}
     onClick={onClick}
   >
     <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -53,16 +51,15 @@ const MetricCard = memo(({
 
 MetricCard.displayName = 'MetricCard';
 
-export default function FinancialMetrics({ onNavigateToInvestmentFund }: FinancialMetricsProps) {
+export default function FinancialMetrics({ onNavigateToInvestmentFund, isAdmin }: FinancialMetricsProps) {
   const { data: metrics, isLoading, isError, error, refetch } = useFinancialMetrics();
   const { data: detailedMetrics, refetch: refetchDetailed } = useGetFinancialMetricsDetailed();
   const { data: funds } = useAllFunds();
 
   const [expandedCard, setExpandedCard] = useState<string | null>(null);
-  const [editingFund, setEditingFund] = useState<bigint | null>(null);
-  const [addingTransactionToFund, setAddingTransactionToFund] = useState<bigint | null>(null);
+  const [editingFund, setEditingFund] = useState<Fund | null>(null);
+  const [addingTransactionToFund, setAddingTransactionToFund] = useState<{ id: bigint; name: string } | null>(null);
 
-  // Memoized fund balances calculation
   const fundBalances = useMemo(() => {
     if (!funds) return { main: 0, maintenance: 0, salaries: 0, investment: 0 };
     return {
@@ -73,13 +70,10 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
     };
   }, [funds]);
 
-  const mainFund = useMemo(() => {
-    return funds?.find(f => f.fundType === 'main');
-  }, [funds]);
+  const mainFund = useMemo(() => funds?.find(f => f.fundType === 'main'), [funds]);
 
   const formatDate = useCallback((timestamp: bigint) => {
-    const date = new Date(Number(timestamp) / 1000000);
-    return date.toLocaleDateString();
+    return new Date(Number(timestamp) / 1_000_000).toLocaleDateString();
   }, []);
 
   const formatCurrency = useCallback((amount: number) => {
@@ -89,12 +83,6 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
   const toggleCard = useCallback((cardId: string) => {
     setExpandedCard(prev => prev === cardId ? null : cardId);
   }, []);
-
-  const handleInvestmentCardClick = useCallback(() => {
-    if (onNavigateToInvestmentFund) {
-      onNavigateToInvestmentFund();
-    }
-  }, [onNavigateToInvestmentFund]);
 
   const handleRefresh = useCallback(async () => {
     await Promise.all([refetch(), refetchDetailed()]);
@@ -138,14 +126,11 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
     );
   }
 
-  // Use Investment Fund balance from funds data for accurate display
   const investmentRemaining = fundBalances.investment;
   const totalRevenue = metrics?.totalRevenueYTD ?? 0;
   const breakEvenProgress = (metrics?.breakEvenProgress ?? 0) * 100;
   const netProfit = metrics?.netProfit ?? 0;
-
   const showBreakEvenAlert = breakEvenProgress < 50;
-  const showInvestmentCard = investmentRemaining > 0;
 
   return (
     <section className="space-y-4">
@@ -156,8 +141,7 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           Refresh
         </Button>
       </div>
-      
-      {/* Alerts */}
+
       {showBreakEvenAlert && (
         <Alert className="border-yellow-500 bg-yellow-50 dark:bg-yellow-900/20 text-yellow-900 dark:text-yellow-200">
           <AlertCircle className="h-4 w-4" />
@@ -168,19 +152,17 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
       )}
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Investment Remaining - Only show if active */}
-        {showInvestmentCard && (
+        {investmentRemaining > 0 && (
           <MetricCard
             title="Investment Remaining"
             value={formatCurrency(investmentRemaining)}
             icon={DollarSign}
             borderColor="border-l-cyan-600"
-            onClick={handleInvestmentCardClick}
+            onClick={onNavigateToInvestmentFund}
             subtitle="Click to manage Investment Fund"
           />
         )}
 
-        {/* Total Revenue YTD */}
         <MetricCard
           title="Total Revenue YTD"
           value={formatCurrency(totalRevenue)}
@@ -191,8 +173,10 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           subtitle="Click to view breakdown"
         />
 
-        {/* Break-even Progress */}
-        <Card className="border-l-4 border-l-blue-600 cursor-pointer hover:shadow-md transition-all duration-200" onClick={() => toggleCard('breakeven')}>
+        <Card
+          className="border-l-4 border-l-blue-600 cursor-pointer hover:shadow-md transition-all duration-200"
+          onClick={() => toggleCard('breakeven')}
+        >
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-slate-600 dark:text-slate-400">Break-even Progress</CardTitle>
             <div className="flex items-center gap-2">
@@ -207,7 +191,6 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           </CardContent>
         </Card>
 
-        {/* Net Profit */}
         <MetricCard
           title="Net Profit"
           value={formatCurrency(netProfit)}
@@ -219,9 +202,9 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
         />
       </div>
 
-      {/* Expanded Details */}
+      {/* Revenue Breakdown */}
       {expandedCard === 'revenue' && detailedMetrics && (
-        <Card className="border-2 border-green-600 animate-in slide-in-from-top-2 duration-200">
+        <Card className="border-2 border-green-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Revenue Breakdown</span>
@@ -232,7 +215,7 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           </CardHeader>
           <CardContent>
             {detailedMetrics.revenueBreakdown.length === 0 ? (
-              <p className="text-center text-slate-500 dark:text-slate-400 py-4">No revenue entries yet</p>
+              <p className="text-center text-slate-500 py-4">No revenue entries yet</p>
             ) : (
               <div className="rounded-md border overflow-x-auto">
                 <Table>
@@ -261,8 +244,9 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
         </Card>
       )}
 
+      {/* Net Profit Breakdown */}
       {expandedCard === 'netprofit' && detailedMetrics && (
-        <Card className="border-2 border-emerald-600 animate-in slide-in-from-top-2 duration-200">
+        <Card className="border-2 border-emerald-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Net Profit Breakdown</span>
@@ -273,53 +257,48 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Revenue</p>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(detailedMetrics.totalRevenueYTD)}</p>
               </div>
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Expenses</p>
                 <p className="text-2xl font-bold text-red-600">
                   {formatCurrency(detailedMetrics.expenseBreakdown.reduce((sum, e) => sum + e.amount, 0))}
                 </p>
               </div>
             </div>
-            
-            <div className="space-y-2">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100">Expense Details</h4>
-              {detailedMetrics.expenseBreakdown.length === 0 ? (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-4">No expenses yet</p>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Info</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
+            {detailedMetrics.expenseBreakdown.length > 0 && (
+              <div className="rounded-md border overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Category</TableHead>
+                      <TableHead>Info</TableHead>
+                      <TableHead className="text-right">Amount</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {detailedMetrics.expenseBreakdown.map((entry) => (
+                      <TableRow key={Number(entry.expenseId)}>
+                        <TableCell className="text-sm">{formatDate(entry.date)}</TableCell>
+                        <TableCell className="font-medium">{entry.category}</TableCell>
+                        <TableCell className="text-sm">{entry.additionalInfo || '-'}</TableCell>
+                        <TableCell className="text-right font-semibold text-red-600">{formatCurrency(entry.amount)}</TableCell>
                       </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailedMetrics.expenseBreakdown.map((entry) => (
-                        <TableRow key={Number(entry.expenseId)}>
-                          <TableCell className="text-sm">{formatDate(entry.date)}</TableCell>
-                          <TableCell className="font-medium">{entry.category}</TableCell>
-                          <TableCell className="text-sm">{entry.additionalInfo || '-'}</TableCell>
-                          <TableCell className="text-right font-semibold text-red-600">{formatCurrency(entry.amount)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
-            </div>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}
 
+      {/* Break-even Analysis */}
       {expandedCard === 'breakeven' && (
-        <Card className="border-2 border-blue-600 animate-in slide-in-from-top-2 duration-200">
+        <Card className="border-2 border-blue-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Break-even Analysis</span>
@@ -337,18 +316,15 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
               <Progress value={breakEvenProgress} className="h-3" />
             </div>
             <div className="grid gap-4 md:grid-cols-2">
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Jobs Completed</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{detailedMetrics?.revenueBreakdown.length || 0}</p>
+                <p className="text-2xl font-bold">{detailedMetrics?.revenueBreakdown.length || 0}</p>
               </div>
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Target Jobs</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">33</p>
+                <p className="text-2xl font-bold">33</p>
               </div>
             </div>
-            <p className="text-sm text-slate-600 dark:text-slate-400">
-              You need {Math.max(0, 33 - (detailedMetrics?.revenueBreakdown.length || 0))} more jobs to reach break-even point.
-            </p>
           </CardContent>
         </Card>
       )}
@@ -364,7 +340,6 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           isExpanded={expandedCard === 'mainfund'}
           subtitle="Click to manage"
         />
-
         <MetricCard
           title="Maintenance Fund"
           value={formatCurrency(fundBalances.maintenance)}
@@ -374,7 +349,6 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
           isExpanded={expandedCard === 'maintenancefund'}
           subtitle="5% from each job"
         />
-
         <MetricCard
           title="Salaries Fund"
           value={formatCurrency(fundBalances.salaries)}
@@ -385,78 +359,53 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
       </div>
 
       {/* Main Fund Details */}
-      {expandedCard === 'mainfund' && mainFund && detailedMetrics && (
-        <Card className="border-2 border-blue-600 animate-in slide-in-from-top-2 duration-200">
+      {expandedCard === 'mainfund' && mainFund && (
+        <Card className="border-2 border-blue-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
               <span>Main Fund Management</span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" size="sm" onClick={(e) => { e.stopPropagation(); setEditingFund(mainFund.id); }}>
-                  <Edit className="h-4 w-4 mr-2" />
-                  Edit Fund
-                </Button>
-                <Button variant="default" size="sm" onClick={(e) => { e.stopPropagation(); setAddingTransactionToFund(mainFund.id); }} className="bg-blue-600 hover:bg-blue-700">
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Transaction
-                </Button>
+                {isAdmin && (
+                  <>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setEditingFund(mainFund); }}
+                    >
+                      <Edit className="h-4 w-4 mr-2" />
+                      Edit Fund
+                    </Button>
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={(e) => { e.stopPropagation(); setAddingTransactionToFund({ id: mainFund.id, name: mainFund.name }); }}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Transaction
+                    </Button>
+                  </>
+                )}
                 <Button variant="ghost" size="sm" onClick={() => setExpandedCard(null)}>
                   <ChevronUp className="h-4 w-4" />
                 </Button>
               </div>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Current Balance</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(mainFund.balance)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(mainFund.balance)}</p>
               </div>
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Spending Limit</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(mainFund.spendingLimit)}</p>
+                <p className="text-2xl font-bold">{formatCurrency(mainFund.spendingLimit)}</p>
               </div>
-              <div className="space-y-2">
-                <p className="text-sm text-slate-600 dark:text-slate-400">Status</p>
-                <Badge variant={mainFund.isActive ? 'default' : 'secondary'}>
-                  {mainFund.isActive ? 'Active' : 'Inactive'}
-                </Badge>
+              <div>
+                <p className="text-sm text-slate-600 dark:text-slate-400">Approval Threshold</p>
+                <p className="text-2xl font-bold">{formatCurrency(mainFund.approvalThreshold)}</p>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100">Recent Transactions</h4>
-              {detailedMetrics.fundBalances.find(f => f.fundType === 'main')?.recentTransactions.length === 0 ? (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-4">No transactions yet</p>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailedMetrics.fundBalances.find(f => f.fundType === 'main')?.recentTransactions.map((transaction) => (
-                        <TableRow key={Number(transaction.id)}>
-                          <TableCell className="text-sm">{formatDate(transaction.date)}</TableCell>
-                          <TableCell>
-                            <Badge variant={transaction.transactionType === 'inflow' ? 'default' : 'secondary'} className="text-xs">
-                              {transaction.transactionType}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{transaction.description}</TableCell>
-                          <TableCell className={`text-right font-semibold ${transaction.transactionType === 'inflow' ? 'text-green-600' : 'text-red-600'}`}>
-                            {transaction.transactionType === 'inflow' ? '+' : '-'}{formatCurrency(transaction.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
@@ -464,86 +413,48 @@ export default function FinancialMetrics({ onNavigateToInvestmentFund }: Financi
 
       {/* Maintenance Fund Details */}
       {expandedCard === 'maintenancefund' && detailedMetrics && (
-        <Card className="border-2 border-orange-600 animate-in slide-in-from-top-2 duration-200">
+        <Card className="border-2 border-orange-600">
           <CardHeader>
             <CardTitle className="flex items-center justify-between">
-              <span>Maintenance Fund Status</span>
+              <span>Maintenance Fund Details</span>
               <Button variant="ghost" size="sm" onClick={() => setExpandedCard(null)}>
                 <ChevronUp className="h-4 w-4" />
               </Button>
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-4">
+          <CardContent>
             <div className="grid gap-4 md:grid-cols-3">
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Current Balance</p>
-                <p className="text-2xl font-bold text-slate-900 dark:text-slate-100">{formatCurrency(detailedMetrics.maintenanceFundStatus.balance)}</p>
+                <p className="text-2xl font-bold text-orange-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.balance)}</p>
               </div>
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Collected</p>
                 <p className="text-2xl font-bold text-green-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.totalCollected)}</p>
               </div>
-              <div className="space-y-2">
+              <div>
                 <p className="text-sm text-slate-600 dark:text-slate-400">Total Spent</p>
                 <p className="text-2xl font-bold text-red-600">{formatCurrency(detailedMetrics.maintenanceFundStatus.totalSpent)}</p>
               </div>
-            </div>
-
-            <div className="space-y-2">
-              <h4 className="font-semibold text-slate-900 dark:text-slate-100">Recent Entries</h4>
-              {detailedMetrics.maintenanceFundStatus.recentEntries.length === 0 ? (
-                <p className="text-center text-slate-500 dark:text-slate-400 py-4">No entries yet</p>
-              ) : (
-                <div className="rounded-md border overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Purpose</TableHead>
-                        <TableHead className="text-right">Amount</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {detailedMetrics.maintenanceFundStatus.recentEntries.map((entry) => (
-                        <TableRow key={Number(entry.id)}>
-                          <TableCell className="text-sm">{formatDate(entry.date)}</TableCell>
-                          <TableCell>
-                            <Badge variant={entry.transactionType === 'inflow' ? 'default' : 'secondary'} className="text-xs">
-                              {entry.transactionType}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-sm">{entry.purpose}</TableCell>
-                          <TableCell className={`text-right font-semibold ${entry.transactionType === 'inflow' ? 'text-green-600' : 'text-red-600'}`}>
-                            {entry.transactionType === 'inflow' ? '+' : '-'}{formatCurrency(entry.amount)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
       )}
 
       {/* Edit Fund Dialog */}
-      {editingFund && mainFund && (
-        <EditFundDialog
-          fund={mainFund}
-          open={!!editingFund}
-          onClose={() => setEditingFund(null)}
-        />
-      )}
+      <EditFundDialog
+        open={editingFund !== null}
+        onOpenChange={(open) => { if (!open) setEditingFund(null); }}
+        fund={editingFund}
+      />
 
-      {/* Add Transaction Dialog */}
-      {addingTransactionToFund && mainFund && (
+      {/* Add Fund Transaction Dialog */}
+      {addingTransactionToFund && (
         <AddFundTransactionDialog
-          fundId={mainFund.id}
-          fundName={mainFund.name}
-          open={!!addingTransactionToFund}
-          onClose={() => setAddingTransactionToFund(null)}
+          open={addingTransactionToFund !== null}
+          onOpenChange={(open) => { if (!open) setAddingTransactionToFund(null); }}
+          fundId={addingTransactionToFund.id}
+          fundName={addingTransactionToFund.name}
         />
       )}
     </section>

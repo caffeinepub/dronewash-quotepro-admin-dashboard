@@ -1,41 +1,30 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Building a maintenance management app with features including a maintenance fund ledger (with delete/edit entries) and a reset button for total collections and expenses. Currently implementing the reset button in 6 micro-steps to work around free plan build limitations. Draft 50 is the last known stable version used as rollback checkpoint.",
-  "architectural_notes": [
-    "Builds are split into 6 micro-steps to avoid free plan tool iteration limits: (1) Reset button UI, (2) Backend reset for collections, (3) Backend reset for expenses, (4) Wire button to collections reset, (5) Wire button to expenses reset, (6) Confirmation dialog + feedback",
-    "Draft 50 is the rollback checkpoint — user can say 'revert to draft 50' to restore last stable state"
-  ],
-  "known_issues": [
-    "Free plan causes repeated build failures due to tool iteration limits; off-peak hours (2am-7am UTC) recommended for complex builds"
-  ],
+  "summary": "New project",
+  "architectural_notes": [],
+  "known_issues": [],
   "isFixRequest": false,
-  "existing_features": [
-    {
-      "id": "feature-add-a-reset-button-to-the-maintenancemanagement-component-ui-the-button-should-be-visible-only-to-admin-users-consistent-with-the-existing-admin-only-add-maintenance-expense-button-pattern-the-button-should-be-styled-with-a-destructive-warning-style-e-g-red-or-orange-to-indicate-it-is-a-dangerous-action-the-button-should-render-in-the-header-controls-area-of-the-maintenance-management-section-the-button-must-have-no-click-handler-logic-attached-yet-it-should-be-inert-or-log-a-placeholder-console-message-do-not-add-any-backend-calls-or-state-changes",
-      "title": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
-      "reqIds": [
-        "REQ-1"
-      ],
-      "version": 1
-    }
-  ],
+  "existing_features": [],
   "new_feature_requests": [
     {
       "id": "AR-1",
-      "summary": "Delete and edit entries on maintenance fund ledger",
-      "reqIds": [],
+      "summary": "Implement an admin-only `resetMaintenanceFund` function in the Motoko backend actor that resets the maintenance fund balance and related state, restricted to users with the admin role.",
+      "reqIds": [
+        "REQ-1"
+      ],
       "status": "pending"
     },
     {
       "id": "AR-2",
-      "summary": "Reset button for maintenance management to clear total collections and total expenses",
-      "reqIds": [],
+      "summary": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new `resetMaintenanceFund` backend function via a React Query mutation hook, displaying a success or error toast on completion.",
+      "reqIds": [
+        "REQ-2"
+      ],
       "status": "pending"
     }
   ],
-  "gameProjectType": "none",
-  "projectName": "DroneWash Dashboard",
+  "projectName": "Implement admin-only resetMaintenanceFund backend function",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

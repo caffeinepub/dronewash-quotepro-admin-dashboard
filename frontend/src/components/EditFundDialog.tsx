@@ -1,90 +1,83 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import React, { useState, useEffect } from 'react';
+import { toast } from 'sonner';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
-import { useUpdateFund } from '@/hooks/useQueries';
-import { toast } from 'sonner';
-import { Fund } from '../backend';
+import { useUpdateFund, Fund } from '@/hooks/useQueries';
 
 interface EditFundDialogProps {
-  fund: Fund;
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
+  fund: Fund | null;
 }
 
-export default function EditFundDialog({ fund, open, onClose }: EditFundDialogProps) {
-  const [name, setName] = useState(fund.name);
-  const [balance, setBalance] = useState(fund.balance.toString());
-  const [spendingLimit, setSpendingLimit] = useState(fund.spendingLimit.toString());
-  const [approvalThreshold, setApprovalThreshold] = useState(fund.approvalThreshold.toString());
-  const [isActive, setIsActive] = useState(fund.isActive);
+export default function EditFundDialog({ open, onOpenChange, fund }: EditFundDialogProps) {
+  const [name, setName] = useState('');
+  const [spendingLimit, setSpendingLimit] = useState('');
+  const [approvalThreshold, setApprovalThreshold] = useState('');
 
-  const { mutate: updateFund, isPending } = useUpdateFund();
+  const updateFund = useUpdateFund();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  useEffect(() => {
+    if (fund) {
+      setName(fund.name);
+      setSpendingLimit(fund.spendingLimit.toString());
+      setApprovalThreshold(fund.approvalThreshold.toString());
+    }
+  }, [fund]);
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!fund) return;
 
-    const balanceNum = parseFloat(balance);
-    const spendingLimitNum = parseFloat(spendingLimit);
-    const approvalThresholdNum = parseFloat(approvalThreshold);
+    const parsedSpendingLimit = parseFloat(spendingLimit);
+    const parsedApprovalThreshold = parseFloat(approvalThreshold);
 
-    if (isNaN(balanceNum) || isNaN(spendingLimitNum) || isNaN(approvalThresholdNum)) {
-      toast.error('Please enter valid numbers');
+    if (isNaN(parsedSpendingLimit) || parsedSpendingLimit < 0) {
+      toast.error('Please enter a valid spending limit.');
+      return;
+    }
+    if (isNaN(parsedApprovalThreshold) || parsedApprovalThreshold < 0) {
+      toast.error('Please enter a valid approval threshold.');
       return;
     }
 
-    updateFund(
-      {
+    try {
+      await updateFund.mutateAsync({
         id: fund.id,
         name,
-        balance: balanceNum,
-        isActive,
-        spendingLimit: spendingLimitNum,
-        approvalThreshold: approvalThresholdNum,
-      },
-      {
-        onSuccess: () => {
-          toast.success('Fund updated successfully');
-          onClose();
-        },
-        onError: (error) => {
-          toast.error('Failed to update fund', {
-            description: error instanceof Error ? error.message : 'Unknown error',
-          });
-        },
-      }
-    );
+        spendingLimit: parsedSpendingLimit,
+        approvalThreshold: parsedApprovalThreshold,
+      });
+      toast.success('Fund updated successfully.');
+      onOpenChange(false);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Failed to update fund';
+      toast.error(message);
+    }
   };
 
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[500px]">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Edit Fund</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Fund Name</Label>
+            <Label htmlFor="fundName">Fund Name</Label>
             <Input
-              id="name"
+              id="fundName"
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="Fund name"
-              required
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="balance">Current Balance (€)</Label>
-            <Input
-              id="balance"
-              type="number"
-              step="0.01"
-              value={balance}
-              onChange={(e) => setBalance(e.target.value)}
-              placeholder="0.00"
               required
             />
           </div>
@@ -95,10 +88,10 @@ export default function EditFundDialog({ fund, open, onClose }: EditFundDialogPr
               id="spendingLimit"
               type="number"
               step="0.01"
+              min="0"
               value={spendingLimit}
               onChange={(e) => setSpendingLimit(e.target.value)}
               placeholder="0.00"
-              required
             />
           </div>
 
@@ -108,28 +101,19 @@ export default function EditFundDialog({ fund, open, onClose }: EditFundDialogPr
               id="approvalThreshold"
               type="number"
               step="0.01"
+              min="0"
               value={approvalThreshold}
               onChange={(e) => setApprovalThreshold(e.target.value)}
               placeholder="0.00"
-              required
-            />
-          </div>
-
-          <div className="flex items-center justify-between">
-            <Label htmlFor="isActive">Fund Active</Label>
-            <Switch
-              id="isActive"
-              checked={isActive}
-              onCheckedChange={setIsActive}
             />
           </div>
 
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={onClose} disabled={isPending}>
+            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={isPending} className="bg-cyan-600 hover:bg-cyan-700">
-              {isPending ? 'Saving...' : 'Save Changes'}
+            <Button type="submit" disabled={updateFund.isPending}>
+              {updateFund.isPending ? 'Saving...' : 'Save Changes'}
             </Button>
           </DialogFooter>
         </form>

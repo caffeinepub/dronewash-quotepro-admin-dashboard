@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,19 +12,26 @@ import AddGoalDialog from './AddGoalDialog';
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'July', 'August', 'September', 'October', 'November', 'December',
 ];
 
 const YEARS = [2024, 2025, 2026];
 
-export default function MonthlyReports() {
+interface MonthlyReportsProps {
+  isAdmin?: boolean;
+}
+
+export default function MonthlyReports({ isAdmin }: MonthlyReportsProps) {
   const currentDate = new Date();
   const [selectedMonth, setSelectedMonth] = useState(MONTHS[currentDate.getMonth()]);
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const [showAddGoalDialog, setShowAddGoalDialog] = useState(false);
 
-  const { data: monthlyReport, isLoading: reportLoading, isError: reportError } = useMonthlyReport(selectedMonth, selectedYear);
-  const { data: monthlyGoals, isLoading: goalsLoading } = useMonthlyGoalsByMonthYear(selectedMonth, selectedYear);
+  // Convert number year to bigint for the hook
+  const selectedYearBigInt = BigInt(selectedYear);
+
+  const { data: monthlyReport, isLoading: reportLoading, isError: reportError } = useMonthlyReport(selectedMonth, selectedYearBigInt);
+  const { data: monthlyGoals, isLoading: goalsLoading } = useMonthlyGoalsByMonthYear(selectedMonth, selectedYearBigInt);
 
   const handleExportCSV = () => {
     if (!monthlyReport) return;
@@ -49,8 +56,8 @@ export default function MonthlyReports() {
         goal.description,
         `€${goal.targetValue.toFixed(2)}`,
         `€${goal.actualValue.toFixed(2)}`,
-        goal.achieved ? 'Achieved' : 'Missed'
-      ]) || [])
+        goal.achieved ? 'Achieved' : 'Missed',
+      ]) || []),
     ].map(row => row.join(',')).join('\n');
 
     const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -116,24 +123,23 @@ export default function MonthlyReports() {
                 </SelectTrigger>
                 <SelectContent>
                   {MONTHS.map((month) => (
-                    <SelectItem key={month} value={month}>
-                      {month}
-                    </SelectItem>
+                    <SelectItem key={month} value={month}>{month}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
             <div className="flex-1">
               <label className="mb-2 block text-sm font-medium text-slate-700">Year</label>
-              <Select value={selectedYear.toString()} onValueChange={(val) => setSelectedYear(parseInt(val))}>
+              <Select
+                value={selectedYear.toString()}
+                onValueChange={(val) => setSelectedYear(parseInt(val))}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
                   {YEARS.map((year) => (
-                    <SelectItem key={year} value={year.toString()}>
-                      {year}
-                    </SelectItem>
+                    <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
                   ))}
                 </SelectContent>
               </Select>
@@ -150,12 +156,11 @@ export default function MonthlyReports() {
         </Card>
       ) : monthlyReport ? (
         <>
-          {/* Monthly Status Report */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <TrendingUp className="h-5 w-5 text-green-600" />
-                Monthly Status Report - {selectedMonth} {selectedYear}
+                Monthly Status Report — {selectedMonth} {selectedYear}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -202,7 +207,6 @@ export default function MonthlyReports() {
             </CardContent>
           </Card>
 
-          {/* Monthly Goals & Milestones */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -210,14 +214,16 @@ export default function MonthlyReports() {
                   <Target className="h-5 w-5 text-cyan-600" />
                   Goals & Milestones Tracker
                 </div>
-                <Button 
-                  onClick={() => setShowAddGoalDialog(true)}
-                  className="gap-2 bg-cyan-600 hover:bg-cyan-700"
-                  size="sm"
-                >
-                  <Plus className="h-4 w-4" />
-                  Add New Goal
-                </Button>
+                {isAdmin && (
+                  <Button
+                    onClick={() => setShowAddGoalDialog(true)}
+                    className="gap-2 bg-cyan-600 hover:bg-cyan-700"
+                    size="sm"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Add New Goal
+                  </Button>
+                )}
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -276,10 +282,11 @@ export default function MonthlyReports() {
         </Card>
       )}
 
-      {/* Add Goal Dialog */}
       <AddGoalDialog
         open={showAddGoalDialog}
-        onClose={() => setShowAddGoalDialog(false)}
+        onOpenChange={setShowAddGoalDialog}
+        defaultMonth={selectedMonth}
+        defaultYear={selectedYear}
       />
     </section>
   );

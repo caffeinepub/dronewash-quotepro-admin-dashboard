@@ -1,297 +1,371 @@
-import { useState } from 'react';
-import { Button } from '@/components/ui/button';
-import { LogOut, Droplets, User, Save, Database } from 'lucide-react';
-import { Badge } from '@/components/ui/badge';
+import React, { useState, lazy, Suspense, useCallback } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  LayoutDashboard,
+  FileText,
+  Calculator,
+  BarChart3,
+  Settings,
+  LogOut,
+  User,
+  Download,
+  ChevronDown,
+  Wrench,
+  DollarSign,
+  Calendar,
+  FileCheck,
+  TrendingUp,
+  Wallet,
+  ClipboardList,
+} from 'lucide-react';
+import {
+  useBackupData,
+  useGetAllJobs,
+  useGetAllExpenses,
+  useGetAllQuotes,
+  useGetAllInvoices,
+  useAllFunds,
+  useGetAllContracts,
+} from '@/hooks/useQueries';
 import { toast } from 'sonner';
-import FinancialMetrics from '@/components/FinancialMetrics';
-import DataEntryForms from '@/components/DataEntryForms';
-import JobCalendar from '@/components/JobCalendar';
-import QuoteCalculator from '@/components/QuoteCalculator';
-import QuotesList from '@/components/QuotesList';
-import InvoiceCreation from '@/components/InvoiceCreation';
-import InvoicesList from '@/components/InvoicesList';
-import AnalyticsCharts from '@/components/AnalyticsCharts';
-import ReportingSection from '@/components/ReportingSection';
-import MonthlyReports from '@/components/MonthlyReports';
-import PricingManagement from '@/components/PricingManagement';
-import COGSSettings from '@/components/COGSSettings';
-import ArchivedInvestments from '@/components/ArchivedInvestments';
-import FundsManagement from '@/components/FundsManagement';
-import MaintenanceManagement from '@/components/MaintenanceManagement';
-import ExpensesManagement from '@/components/ExpensesManagement';
-import ContractsManagement from '@/components/ContractsManagement';
+import type { UserProfile } from '../backend';
+import { UserRole } from '../backend';
 import LoadingPanel from '@/components/LoadingPanel';
-import ErrorPanel from '@/components/ErrorPanel';
-import BackupVersionsDialog from '@/components/BackupVersionsDialog';
-import { useBackupData, useAllJobs, useAllExpenses, useAllQuotes, useAllInvoices, useAllFunds, useAllContracts } from '@/hooks/useQueries';
-import { UserProfile, UserRole } from '../backend';
+
+const FinancialMetrics = lazy(() => import('@/components/FinancialMetrics'));
+const DataEntryForms = lazy(() => import('@/components/DataEntryForms'));
+const QuoteCalculator = lazy(() => import('@/components/QuoteCalculator'));
+const QuotesList = lazy(() => import('@/components/QuotesList'));
+const InvoiceCreation = lazy(() => import('@/components/InvoiceCreation'));
+const InvoicesList = lazy(() => import('@/components/InvoicesList'));
+const AnalyticsCharts = lazy(() => import('@/components/AnalyticsCharts'));
+const ReportingSection = lazy(() => import('@/components/ReportingSection'));
+const PricingManagement = lazy(() => import('@/components/PricingManagement'));
+const MonthlyReports = lazy(() => import('@/components/MonthlyReports'));
+const JobCalendar = lazy(() => import('@/components/JobCalendar'));
+const KPIWidgets = lazy(() => import('@/components/KPIWidgets'));
+const FundsManagement = lazy(() => import('@/components/FundsManagement'));
+const MaintenanceManagement = lazy(() => import('@/components/MaintenanceManagement'));
+const InvestmentFundManagement = lazy(() => import('@/components/InvestmentFundManagement'));
+const ExpensesManagement = lazy(() => import('@/components/ExpensesManagement'));
+const COGSSettings = lazy(() => import('@/components/COGSSettings'));
+const ContractsManagement = lazy(() => import('@/components/ContractsManagement'));
+const UserPreferencesDialog = lazy(() => import('@/components/UserPreferencesDialog'));
+const BackupVersionsDialog = lazy(() => import('@/components/BackupVersionsDialog'));
 
 interface DashboardProps {
   onLogout: () => void;
-  userProfile: UserProfile | null | undefined;
-  userRole: UserRole | undefined;
+  userProfile: UserProfile | null;
+  userRole: UserRole;
 }
 
 export default function Dashboard({ onLogout, userProfile, userRole }: DashboardProps) {
-  const { mutate: backupData, isPending: isBackingUp } = useBackupData();
+  const isAdmin = userRole === UserRole.admin;
   const [activeTab, setActiveTab] = useState('overview');
-  const [fundsSubTab, setFundsSubTab] = useState('operational');
+  const [showPreferences, setShowPreferences] = useState(false);
   const [showBackupVersions, setShowBackupVersions] = useState(false);
 
-  // Preload all data for better UX
-  const { isLoading: jobsLoading, error: jobsError, refetch: refetchJobs } = useAllJobs();
-  const { isLoading: expensesLoading, error: expensesError, refetch: refetchExpenses } = useAllExpenses();
-  const { isLoading: quotesLoading, error: quotesError, refetch: refetchQuotes } = useAllQuotes();
-  const { isLoading: invoicesLoading, error: invoicesError, refetch: refetchInvoices } = useAllInvoices();
-  const { isLoading: fundsLoading, error: fundsError, refetch: refetchFunds } = useAllFunds();
-  const { isLoading: contractsLoading, error: contractsError, refetch: refetchContracts } = useAllContracts();
+  const backupMutation = useBackupData();
+  const { data: jobs = [] } = useGetAllJobs();
+  const { data: invoices = [] } = useGetAllInvoices();
+  // Preload other data
+  useGetAllExpenses();
+  useGetAllQuotes();
+  useAllFunds();
+  useGetAllContracts();
 
-  const isAdmin = userRole === UserRole.admin;
-  const isViewer = userRole === UserRole.user;
+  const handleBackup = useCallback(async () => {
+    try {
+      const backupData = await backupMutation.mutateAsync();
+      const timestampMs = Number(backupData.timestamp) / 1_000_000;
+      const timestamp = new Date(timestampMs).toLocaleString();
+      const versionId = `backup-${Date.now()}`;
 
-  const handleBackup = () => {
-    backupData(undefined, {
-      onSuccess: (backupVersion) => {
-        const timestamp = new Date(backupVersion.timestamp / 1000000).toLocaleString();
-        toast.success('Backup completed successfully!', {
-          description: `Save Version ID: ${backupVersion.saveVersionId}\nTimestamp: ${timestamp}\nStore this ID for recovery purposes.`,
-          duration: 10000,
+      // Save to localStorage
+      try {
+        const existing = JSON.parse(localStorage.getItem('droneWashBackupVersions') || '[]');
+        existing.push({
+          id: versionId,
+          timestamp: backupData.timestamp.toString(),
+          data: backupData,
         });
-      },
-      onError: (error) => {
-        toast.error('Backup failed', {
-          description: error instanceof Error ? error.message : 'Unable to complete backup. Please try again.',
-        });
-      },
-    });
-  };
+        localStorage.setItem('droneWashBackupVersions', JSON.stringify(existing));
+      } catch {
+        // ignore storage errors
+      }
 
-  const handleNavigateToInvestmentFund = () => {
-    setActiveTab('funds');
-    setFundsSubTab('investment');
-  };
+      toast.success('Backup created successfully', {
+        description: `Version ID: ${versionId} | ${timestamp}`,
+      });
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Backup failed');
+    }
+  }, [backupMutation]);
 
-  const handleRetryAll = () => {
-    refetchJobs();
-    refetchExpenses();
-    refetchQuotes();
-    refetchInvoices();
-    refetchFunds();
-    refetchContracts();
-  };
+  const tabs = [
+    { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+    { id: 'data-entry', label: 'Data Entry', icon: FileText, adminOnly: true },
+    { id: 'calendar', label: 'Calendar', icon: Calendar },
+    { id: 'quotes', label: 'Quotes', icon: Calculator },
+    { id: 'invoices', label: 'Invoices', icon: FileCheck },
+    { id: 'contracts', label: 'Contracts', icon: ClipboardList },
+    { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+    { id: 'funds', label: 'Funds', icon: Wallet, adminOnly: true },
+    { id: 'maintenance', label: 'Maintenance', icon: Wrench, adminOnly: true },
+    { id: 'investment', label: 'Investment', icon: TrendingUp, adminOnly: true },
+    { id: 'expenses', label: 'Expenses', icon: DollarSign, adminOnly: true },
+    { id: 'reports', label: 'Reports', icon: FileText },
+    { id: 'monthly', label: 'Monthly', icon: BarChart3 },
+    { id: 'settings', label: 'Settings', icon: Settings, adminOnly: true },
+  ].filter((tab) => !tab.adminOnly || isAdmin);
 
-  // Show loading state if critical data is still loading
-  const isInitialLoading = jobsLoading || expensesLoading || quotesLoading || invoicesLoading || fundsLoading || contractsLoading;
-  const hasErrors = jobsError || expensesError || quotesError || invoicesError || fundsError || contractsError;
+  // Simple inline spinner for Suspense fallbacks
+  const Spinner = () => (
+    <div className="flex items-center justify-center py-12">
+      <LoadingPanel message="Loading..." />
+    </div>
+  );
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-cyan-50 dark:from-slate-900 dark:to-slate-800">
+    <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b bg-white dark:bg-slate-900 shadow-sm sticky top-0 z-10">
-        <div className="container mx-auto flex items-center justify-between px-4 py-4">
+      <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-cyan-600">
-              <Droplets className="h-6 w-6 text-white" />
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary">
+              <span className="text-primary-foreground font-bold text-sm">DW</span>
             </div>
             <div>
-              <h1 className="text-xl font-bold text-slate-900 dark:text-slate-100">DroneWash QuotePro</h1>
-              <p className="text-sm text-slate-600 dark:text-slate-400">Business Dashboard</p>
+              <h1 className="text-lg font-bold text-foreground leading-none">DroneWash</h1>
+              <p className="text-xs text-muted-foreground">Dashboard</p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            {userProfile && (
-              <div className="flex items-center gap-2 rounded-lg border bg-slate-50 dark:bg-slate-800 px-3 py-2">
-                <User className="h-4 w-4 text-slate-600 dark:text-slate-400" />
-                <span className="text-sm font-medium text-slate-900 dark:text-slate-100">{userProfile.name}</span>
-                <Badge variant={isAdmin ? 'default' : 'secondary'} className="text-xs">
-                  {isAdmin ? 'Admin' : 'Viewer'}
-                </Badge>
-              </div>
+
+          <div className="flex items-center gap-2">
+            <div className="hidden md:flex items-center gap-2">
+              <Badge variant="outline" className="text-xs">
+                {jobs.length} Jobs
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                {invoices.length} Invoices
+              </Badge>
+            </div>
+
+            {isAdmin && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleBackup}
+                disabled={backupMutation.isPending}
+                className="hidden md:flex gap-2"
+              >
+                <Download className="h-4 w-4" />
+                {backupMutation.isPending ? 'Backing up...' : 'Backup'}
+              </Button>
             )}
-            <Button
-              variant="outline"
-              onClick={() => setShowBackupVersions(true)}
-              className="gap-2"
-            >
-              <Database className="h-4 w-4" />
-              Versions
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleBackup}
-              disabled={isBackingUp}
-              className="gap-2 bg-cyan-600 hover:bg-cyan-700"
-            >
-              <Save className="h-4 w-4" />
-              {isBackingUp ? 'Backing up...' : 'Backup Data'}
-            </Button>
-            <Button variant="outline" onClick={onLogout} className="gap-2">
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <User className="h-4 w-4" />
+                  <span className="hidden sm:inline">{userProfile?.name ?? 'User'}</span>
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setShowPreferences(true)}>
+                  <Settings className="h-4 w-4 mr-2" />
+                  Preferences
+                </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => setShowBackupVersions(true)}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Backup Versions
+                  </DropdownMenuItem>
+                )}
+                {isAdmin && (
+                  <DropdownMenuItem onClick={handleBackup} disabled={backupMutation.isPending}>
+                    <Download className="h-4 w-4 mr-2" />
+                    Create Backup
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={onLogout} className="text-destructive">
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </header>
 
-      {/* Main Content with Tabs */}
+      {/* Main Content */}
       <main className="container mx-auto px-4 py-6">
-        {/* Show global error if any critical data failed to load */}
-        {hasErrors && (
-          <div className="mb-6">
-            <ErrorPanel
-              title="Data Loading Error"
-              error={jobsError || expensesError || quotesError || invoicesError || fundsError || contractsError || new Error('Unknown error')}
-              onRetry={handleRetryAll}
-            />
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <div className="mb-6 overflow-x-auto">
+            <TabsList className="flex h-auto gap-1 bg-muted p-1 w-max">
+              {tabs.map((tab) => (
+                <TabsTrigger key={tab.id} value={tab.id} className="gap-1.5 text-xs whitespace-nowrap">
+                  <tab.icon className="h-3.5 w-3.5" />
+                  {tab.label}
+                </TabsTrigger>
+              ))}
+            </TabsList>
           </div>
-        )}
 
-        {/* Show loading state during initial data fetch */}
-        {isInitialLoading && !hasErrors && (
-          <div className="mb-6">
-            <LoadingPanel
-              title="Loading Dashboard"
-              message="Fetching all your data from the blockchain. This may take a moment..."
-            />
-          </div>
-        )}
-
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4 lg:grid-cols-10 gap-2">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="jobs">Jobs</TabsTrigger>
-            <TabsTrigger value="quotes">Quotes</TabsTrigger>
-            <TabsTrigger value="invoices">Invoices</TabsTrigger>
-            <TabsTrigger value="contracts">Contracts</TabsTrigger>
-            <TabsTrigger value="expenses">Expenses</TabsTrigger>
-            <TabsTrigger value="funds">Funds</TabsTrigger>
-            <TabsTrigger value="maintenance">Maintenance</TabsTrigger>
-            <TabsTrigger value="reports">Reports</TabsTrigger>
-            <TabsTrigger value="archived">Archived</TabsTrigger>
-            {isAdmin && <TabsTrigger value="settings">Settings</TabsTrigger>}
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <FinancialMetrics onNavigateToInvestmentFund={handleNavigateToInvestmentFund} />
-            {isAdmin && <DataEntryForms />}
-            {isViewer && (
-              <section className="rounded-lg border border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950 p-4">
-                <p className="text-sm text-blue-900 dark:text-blue-100">
-                  <strong>Viewer Mode:</strong> You have read-only access to view all data. Contact an administrator to request edit permissions.
-                </p>
-              </section>
-            )}
+          <TabsContent value="overview">
+            <Suspense fallback={<Spinner />}>
+              <div className="space-y-6">
+                <KPIWidgets />
+                <FinancialMetrics isAdmin={isAdmin} />
+              </div>
+            </Suspense>
           </TabsContent>
 
-          {/* Jobs Tab */}
-          <TabsContent value="jobs" className="space-y-6">
-            {jobsLoading ? (
-              <LoadingPanel title="Jobs Calendar" message="Loading jobs data..." />
-            ) : jobsError ? (
-              <ErrorPanel title="Jobs Calendar" error={jobsError} onRetry={refetchJobs} />
-            ) : (
-              <JobCalendar />
-            )}
-          </TabsContent>
-
-          {/* Quotes Tab */}
-          <TabsContent value="quotes" className="space-y-6">
-            {isAdmin && <QuoteCalculator />}
-            {quotesLoading ? (
-              <LoadingPanel title="Quotes List" message="Loading quotes data..." />
-            ) : quotesError ? (
-              <ErrorPanel title="Quotes List" error={quotesError} onRetry={refetchQuotes} />
-            ) : (
-              <QuotesList isAdmin={isAdmin} />
-            )}
-          </TabsContent>
-
-          {/* Invoices Tab */}
-          <TabsContent value="invoices" className="space-y-6">
-            {isAdmin && <InvoiceCreation />}
-            {invoicesLoading ? (
-              <LoadingPanel title="Invoices List" message="Loading invoices data..." />
-            ) : invoicesError ? (
-              <ErrorPanel title="Invoices List" error={invoicesError} onRetry={refetchInvoices} />
-            ) : (
-              <InvoicesList isAdmin={isAdmin} />
-            )}
-          </TabsContent>
-
-          {/* Contracts Tab */}
-          <TabsContent value="contracts" className="space-y-6">
-            {contractsLoading ? (
-              <LoadingPanel title="Contract Management" message="Loading contracts data..." />
-            ) : contractsError ? (
-              <ErrorPanel title="Contract Management" error={contractsError} onRetry={refetchContracts} />
-            ) : (
-              <ContractsManagement isAdmin={isAdmin} />
-            )}
-          </TabsContent>
-
-          {/* Expenses Tab */}
-          <TabsContent value="expenses" className="space-y-6">
-            {expensesLoading ? (
-              <LoadingPanel title="Expenses Management" message="Loading expenses data..." />
-            ) : expensesError ? (
-              <ErrorPanel title="Expenses Management" error={expensesError} onRetry={refetchExpenses} />
-            ) : (
-              <ExpensesManagement isAdmin={isAdmin} />
-            )}
-          </TabsContent>
-
-          {/* Funds Tab */}
-          <TabsContent value="funds" className="space-y-6">
-            {fundsLoading ? (
-              <LoadingPanel title="Funds Management" message="Loading funds data..." />
-            ) : fundsError ? (
-              <ErrorPanel title="Funds Management" error={fundsError} onRetry={refetchFunds} />
-            ) : (
-              <FundsManagement isAdmin={isAdmin} activeSubTab={fundsSubTab} onSubTabChange={setFundsSubTab} />
-            )}
-          </TabsContent>
-
-          {/* Maintenance Tab */}
-          <TabsContent value="maintenance" className="space-y-6">
-            <MaintenanceManagement isAdmin={isAdmin} />
-          </TabsContent>
-
-          {/* Reports Tab */}
-          <TabsContent value="reports" className="space-y-6">
-            <AnalyticsCharts />
-            <MonthlyReports />
-            <ReportingSection />
-          </TabsContent>
-
-          {/* Archived Investments Tab */}
-          <TabsContent value="archived" className="space-y-6">
-            <ArchivedInvestments onNavigateToInvestmentFund={handleNavigateToInvestmentFund} />
-          </TabsContent>
-
-          {/* Settings Tab - Admin Only */}
           {isAdmin && (
-            <TabsContent value="settings" className="space-y-6">
-              <PricingManagement />
-              <COGSSettings />
+            <TabsContent value="data-entry">
+              <Suspense fallback={<Spinner />}>
+                <DataEntryForms />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          <TabsContent value="calendar">
+            <Suspense fallback={<Spinner />}>
+              <JobCalendar />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="quotes">
+            <Suspense fallback={<Spinner />}>
+              <div className="space-y-6">
+                {isAdmin && <QuoteCalculator />}
+                <QuotesList isAdmin={isAdmin} />
+              </div>
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="invoices">
+            <Suspense fallback={<Spinner />}>
+              <div className="space-y-6">
+                {isAdmin && <InvoiceCreation />}
+                <InvoicesList isAdmin={isAdmin} />
+              </div>
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="contracts">
+            <Suspense fallback={<Spinner />}>
+              <ContractsManagement isAdmin={isAdmin} />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <Suspense fallback={<Spinner />}>
+              <AnalyticsCharts />
+            </Suspense>
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="funds">
+              <Suspense fallback={<Spinner />}>
+                <FundsManagement isAdmin={isAdmin} />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="maintenance">
+              <Suspense fallback={<Spinner />}>
+                <MaintenanceManagement isAdmin={isAdmin} />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="investment">
+              <Suspense fallback={<Spinner />}>
+                <InvestmentFundManagement isAdmin={isAdmin} />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="expenses">
+              <Suspense fallback={<Spinner />}>
+                <ExpensesManagement />
+              </Suspense>
+            </TabsContent>
+          )}
+
+          <TabsContent value="reports">
+            <Suspense fallback={<Spinner />}>
+              <ReportingSection />
+            </Suspense>
+          </TabsContent>
+
+          <TabsContent value="monthly">
+            <Suspense fallback={<Spinner />}>
+              <MonthlyReports isAdmin={isAdmin} />
+            </Suspense>
+          </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="settings">
+              <Suspense fallback={<Spinner />}>
+                <div className="space-y-6">
+                  <PricingManagement />
+                  <COGSSettings />
+                </div>
+              </Suspense>
             </TabsContent>
           )}
         </Tabs>
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-white dark:bg-slate-900 py-6">
-        <div className="container mx-auto px-4 text-center text-sm text-slate-600 dark:text-slate-400">
-          © 2025. Built with love using <a href="https://caffeine.ai" target="_blank" rel="noopener noreferrer" className="text-cyan-600 hover:underline">caffeine.ai</a>
+      <footer className="border-t border-border mt-12 py-6">
+        <div className="container mx-auto px-4 text-center text-xs text-muted-foreground">
+          <p>
+            © {new Date().getFullYear()} DroneWash QuotePro. Built with{' '}
+            <span className="text-red-500">♥</span> using{' '}
+            <a
+              href={`https://caffeine.ai/?utm_source=Caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(typeof window !== 'undefined' ? window.location.hostname : 'dronewash')}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-foreground"
+            >
+              caffeine.ai
+            </a>
+          </p>
         </div>
       </footer>
 
-      {/* Backup Versions Dialog */}
-      <BackupVersionsDialog
-        open={showBackupVersions}
-        onClose={() => setShowBackupVersions(false)}
-      />
+      {/* Dialogs */}
+      <Suspense fallback={null}>
+        {showPreferences && (
+          <UserPreferencesDialog
+            open={showPreferences}
+            onOpenChange={setShowPreferences}
+          />
+        )}
+        {showBackupVersions && (
+          <BackupVersionsDialog
+            open={showBackupVersions}
+            onOpenChange={setShowBackupVersions}
+          />
+        )}
+      </Suspense>
     </div>
   );
 }

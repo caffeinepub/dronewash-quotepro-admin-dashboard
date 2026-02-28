@@ -1,25 +1,4 @@
 {
   "kind": "feature_evidence_report",
-  "features": [
-    {
-      "featureId": "feature-add-a-reset-button-to-the-maintenancemanagement-component-ui-the-button-should-be-visible-only-to-admin-users-consistent-with-the-existing-admin-only-add-maintenance-expense-button-pattern-the-button-should-be-styled-with-a-destructive-warning-style-e-g-red-or-orange-to-indicate-it-is-a-dangerous-action-the-button-should-render-in-the-header-controls-area-of-the-maintenance-management-section-the-button-must-have-no-click-handler-logic-attached-yet-it-should-be-inert-or-log-a-placeholder-console-message-do-not-add-any-backend-calls-or-state-changes",
-      "featureTitle": "Add a 'Reset' button to the MaintenanceManagement component UI. The button should be visible only to admin users (consistent with the existing admin-only 'Add Maintenance Expense' button pattern). The button should be styled with a destructive/warning style (e.g., red or orange) to indicate it is a dangerous action. The button should render in the header/controls area of the maintenance management section. The button must have no click handler logic attached yet — it should be inert (or log a placeholder console message). Do not add any backend calls or state changes.",
-      "files": [
-        "frontend/src/components/MaintenanceManagement.tsx"
-      ],
-      "components": [
-        "authorization@1.0.1",
-        "blob-storage@2.0.3",
-        "core-infrastructure@1.0.2",
-        "shadcn-ui@1.0.0",
-        "build-template-react@1.0.0",
-        "initial-app@1.0.0",
-        "github-export-icp-cli@1.0.0"
-      ],
-      "testIds": [
-        "REQ-1"
-      ],
-      "confidence": "high"
-    }
-  ]
+  "features": []
 }

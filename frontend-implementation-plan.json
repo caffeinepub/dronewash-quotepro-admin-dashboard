@@ -1,25 +1,28 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Step 1: Add Reset Button UI to Maintenance Management (no logic)",
+  "title": "Wire Reset Maintenance Fund Admin Button to Backend",
   "requirements": [
     {
-      "id": "REQ-1",
-      "summary": "Add an admin-only, visually destructive Reset button to the MaintenanceManagement component header without any click handler logic",
+      "id": "REQ-2",
+      "summary": "Wire the existing 'Reset Fund' admin button in the MaintenanceManagement frontend component to call the new resetMaintenanceFund backend function via a React Query mutation hook, displaying success or error toast on completion",
       "acceptanceCriteria": [
-        "A 'Reset' button is visible in the MaintenanceManagement component when the logged-in user is an admin.",
-        "The button is NOT visible to non-admin (viewer) users.",
-        "The button uses a destructive or warning visual style (red/orange tones) to signal danger.",
-        "The button is placed near the existing admin controls (e.g., next to or below the 'Add Maintenance Expense' button).",
-        "Clicking the button does not trigger any backend call or data mutation — it is a no-op or logs a placeholder console message.",
-        "No new backend functions or mutations are introduced in this step.",
-        "The rest of the MaintenanceManagement UI remains unchanged."
+        "A `useResetMaintenanceFund` mutation hook is added to frontend/src/hooks/useQueries.ts",
+        "The mutation calls the backend `resetMaintenanceFund` function via the actor",
+        "On success, relevant queries (maintenance fund data) are invalidated and a success toast is shown",
+        "On error, an error toast is shown",
+        "The Reset Fund button in MaintenanceManagement is disabled for non-admin users and shows a loading state while the mutation is in flight"
       ],
       "file_operations": [
         {
+          "path": "frontend/src/hooks/useQueries.ts",
+          "operation": "modify",
+          "description": "Add a `useResetMaintenanceFund` mutation hook that calls the backend `resetMaintenanceFund` function. On success, invalidate the `maintenanceFundStatus` and `financialMetricsDetailed` queries to refresh the maintenance fund data. The hook should handle errors gracefully and return the mutation state."
+        },
+        {
           "path": "frontend/src/components/MaintenanceManagement.tsx",
           "operation": "modify",
-          "description": "Add a 'Reset' button to the component's header/controls area that: (1) is conditionally rendered only when isAdmin is true (using the same pattern as the existing 'Add Maintenance Expense' button), (2) uses a destructive/warning visual style (e.g., variant='destructive' or custom red/orange Tailwind classes), (3) is positioned near the existing admin controls for visual consistency, (4) has an onClick handler that either does nothing or logs a placeholder console message (e.g., console.log('Reset button clicked - no logic wired yet')), and (5) leaves all existing functionality and state management unchanged. Use the authorization component's role-check pattern already present in the component to guard the button visibility."
+          "description": "Import and use the `useResetMaintenanceFund` mutation hook. Connect the existing 'Reset Fund' button to trigger the mutation. Display the mutation loading state on the button (disable and show spinner/loading text while in flight). Show a success toast on successful reset using the existing toast pattern. Show an error toast on failure. Ensure the button is disabled for non-admin users by checking the user role from the appropriate query hook."
         }
       ]
     }

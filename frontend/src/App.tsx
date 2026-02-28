@@ -123,7 +123,6 @@ function AppInner() {
   const [showMigration, setShowMigration] = useState(false);
 
   const isAuthenticated = !!identity;
-  const isLoggingIn = !isInitializing && !isAuthenticated;
 
   const showProfileSetup =
     isAuthenticated && !profileLoading && isFetched && userProfile === null && !profileError;
@@ -196,17 +195,20 @@ function AppInner() {
     return <ConnectionErrorScreen onRetry={handleRetry} />;
   }
 
+  // Provide a safe default for userRole if still loading
+  const resolvedRole: UserRole = userRole ?? UserRole.user;
+
   return (
     <>
       <Suspense fallback={<LoadingScreen message="Loading dashboard..." />}>
         <Dashboard
           onLogout={handleLogout}
           userProfile={userProfile ?? null}
-          userRole={userRole}
+          userRole={resolvedRole}
         />
       </Suspense>
       {showProfileSetup && <ProfileSetupDialog onSave={handleProfileSetup} />}
-      {showMigration && <DataMigrationHandler onComplete={handleMigrationComplete} />}
+      {showMigration && <DataMigrationHandler onMigrationComplete={handleMigrationComplete} />}
     </>
   );
 }
