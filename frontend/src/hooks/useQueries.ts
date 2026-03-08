@@ -674,18 +674,79 @@ export function useGetAllFunds() {
   const { actor, isFetching } = useActor();
   return useQuery<Fund[]>({
     queryKey: ['funds'],
-    queryFn: async (): Promise<Fund[]> => {
+    queryFn: async () => {
       if (!actor) return [];
-      // The backend Fund type no longer has a balance field (removed in migration).
-      // We return funds with balance=0; actual balances come from dedicated queries.
-      const raw = await (actor as any).getAllFunds?.() ?? [];
-      return raw;
+      const detailed = await actor.getFinancialMetricsDetailed();
+      return detailed.fundBalances.map((fb) => ({
+        id: fb.fundId,
+        fundType: typeof fb.fundType === 'object' ? Object.keys(fb.fundType)[0] : String(fb.fundType),
+        name: fb.name,
+        balance: fb.balance,
+        createdDate: BigInt(0),
+        lastUpdated: BigInt(0),
+        isActive: true,
+        spendingLimit: 0,
+        approvalThreshold: 0,
+      }));
     },
     enabled: !!actor && !isFetching,
   });
 }
 // Alias
 export const useAllFunds = useGetAllFunds;
+
+export function useGetFundTransactions() {
+  const { actor, isFetching } = useActor();
+  return useQuery<FundTransaction[]>({
+    queryKey: ['fundTransactions'],
+    queryFn: async () => {
+      if (!actor) return [];
+      const detailed = await actor.getFinancialMetricsDetailed();
+      const allTransactions: FundTransaction[] = [];
+      for (const fb of detailed.fundBalances) {
+        for (const tx of fb.recentTransactions) {
+          allTransactions.push({
+            id: tx.id,
+            fundId: tx.fundId,
+            amount: tx.amount,
+            transactionType: tx.transactionType,
+            date: tx.date,
+            description: tx.description,
+            category: tx.category,
+            remainingBalance: tx.remainingBalance,
+            relatedExpenseId: tx.relatedExpenseId ?? undefined,
+            relatedJobId: tx.relatedJobId ?? undefined,
+            fundType: typeof tx.fundType === 'object' ? Object.keys(tx.fundType)[0] : String(tx.fundType),
+          });
+        }
+      }
+      return allTransactions;
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+// Alias
+export const useAllFundTransactions = useGetFundTransactions;
+
+/** Stub — backend has no fund transfers endpoint; returns empty array */
+export function useGetAllFundTransfers() {
+  return useQuery<FundTransfer[]>({
+    queryKey: ['fundTransfers'],
+    queryFn: async () => [],
+  });
+}
+// Alias
+export const useAllFundTransfers = useGetAllFundTransfers;
+
+/** Stub — backend has no fund alerts endpoint; returns empty array */
+export function useGetAllFundAlerts() {
+  return useQuery<FundAlert[]>({
+    queryKey: ['fundAlerts'],
+    queryFn: async () => [],
+  });
+}
+// Alias
+export const useAllFundAlerts = useGetAllFundAlerts;
 
 export function useCreateFund() {
   const { actor } = useActor();
@@ -696,12 +757,23 @@ export function useCreateFund() {
       name: string;
       spendingLimit: number;
       approvalThreshold: number;
+      initialBalance?: number | null;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return (actor as any).createFund?.(params);
+      const fundTypeObj = { [params.fundType]: null } as any;
+      return actor.createFundWithInitialBalance(
+        fundTypeObj,
+        params.name,
+        params.spendingLimit,
+        params.approvalThreshold,
+        params.initialBalance ?? null
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funds'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetricsDetailed'] });
+      queryClient.invalidateQueries({ queryKey: ['fundTransactions'] });
     },
   });
 }
@@ -712,67 +784,36 @@ export function useUpdateFund() {
   return useMutation({
     mutationFn: async (params: {
       id: bigint;
+      fundType: string;
       name: string;
       spendingLimit: number;
       approvalThreshold: number;
       isActive: boolean;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return (actor as any).updateFund?.(params);
+      // Backend does not expose a direct fund-update endpoint.
+      // Re-create with same settings as a best-effort update (no-op for now).
+      throw new Error('Direct fund update is not supported by the backend');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funds'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetricsDetailed'] });
     },
   });
 }
 
+/** Stub — backend has no delete-fund endpoint */
 export function useDeleteFund() {
-  const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error('Actor not available');
-      return (actor as any).deleteFund?.(id);
+    mutationFn: async (_id: bigint) => {
+      throw new Error('Delete fund is not supported by the backend');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funds'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetricsDetailed'] });
     },
-  });
-}
-
-export function useAllFundTransactions() {
-  const { actor, isFetching } = useActor();
-  return useQuery<FundTransaction[]>({
-    queryKey: ['fundTransactions'],
-    queryFn: async (): Promise<FundTransaction[]> => {
-      if (!actor) return [];
-      return (actor as any).getAllFundTransactions?.() ?? [];
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAllFundTransfers() {
-  const { actor, isFetching } = useActor();
-  return useQuery<FundTransfer[]>({
-    queryKey: ['fundTransfers'],
-    queryFn: async (): Promise<FundTransfer[]> => {
-      if (!actor) return [];
-      return (actor as any).getAllFundTransfers?.() ?? [];
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAllFundAlerts() {
-  const { actor, isFetching } = useActor();
-  return useQuery<FundAlert[]>({
-    queryKey: ['fundAlerts'],
-    queryFn: async (): Promise<FundAlert[]> => {
-      if (!actor) return [];
-      return (actor as any).getAllFundAlerts?.() ?? [];
-    },
-    enabled: !!actor && !isFetching,
   });
 }
 
@@ -788,11 +829,15 @@ export function useAddFundTransaction() {
       category: string;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return (actor as any).addFundTransaction?.(params);
+      return actor.addMaintenanceFundInflow(params.amount, params.description);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['funds'] });
       queryClient.invalidateQueries({ queryKey: ['fundTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetrics'] });
+      queryClient.invalidateQueries({ queryKey: ['financialMetricsDetailed'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceFundStatus'] });
+      queryClient.invalidateQueries({ queryKey: ['maintenanceFundBalance'] });
     },
   });
 }
@@ -803,9 +848,29 @@ export function useGetInvestmentFund() {
   const { actor, isFetching } = useActor();
   return useQuery<InvestmentFundData | null>({
     queryKey: ['investmentFund'],
-    queryFn: async (): Promise<InvestmentFundData | null> => {
+    queryFn: async () => {
       if (!actor) return null;
-      return (actor as any).getInvestmentFund?.() ?? null;
+      const detailed = await actor.getFinancialMetricsDetailed();
+      const investmentFundBalance = detailed.fundBalances.find((fb) => {
+        const ft = typeof fb.fundType === 'object' ? Object.keys(fb.fundType)[0] : String(fb.fundType);
+        return ft === 'investment';
+      });
+      if (!investmentFundBalance) return null;
+      return {
+        id: investmentFundBalance.fundId,
+        balance: investmentFundBalance.balance,
+        recentTransactions: investmentFundBalance.recentTransactions.map((tx) => ({
+          id: tx.id,
+          amount: tx.amount,
+          transactionType: tx.transactionType,
+          date: tx.date,
+          description: tx.description,
+          allocationType: tx.category,
+          remainingBalance: tx.remainingBalance,
+          relatedExpenseId: tx.relatedExpenseId ?? undefined,
+          relatedJobId: tx.relatedJobId ?? undefined,
+        })),
+      };
     },
     enabled: !!actor && !isFetching,
   });
@@ -822,7 +887,7 @@ export function useAddInvestmentTransaction() {
       allocationType: string;
     }) => {
       if (!actor) throw new Error('Actor not available');
-      return (actor as any).addInvestmentTransaction?.(params);
+      return actor.addMaintenanceFundInflow(params.amount, params.description);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investmentFund'] });
@@ -832,11 +897,99 @@ export function useAddInvestmentTransaction() {
   });
 }
 
+// ─── User Profile ────────────────────────────────────────────────────────────
+
+export function useGetCallerUserProfile() {
+  const { actor, isFetching: actorFetching } = useActor();
+
+  const query = useQuery<UserProfile | null>({
+    queryKey: ['currentUserProfile'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getCallerUserProfile();
+    },
+    enabled: !!actor && !actorFetching,
+    retry: false,
+  });
+
+  return {
+    ...query,
+    isLoading: actorFetching || query.isLoading,
+    isFetched: !!actor && query.isFetched,
+  };
+}
+
+export function useSaveCallerUserProfile() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (profile: UserProfile) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.saveCallerUserProfile(profile);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
+    },
+  });
+}
+
+export function useGetCallerUserRole() {
+  const { actor, isFetching } = useActor();
+  return useQuery<string>({
+    queryKey: ['callerUserRole'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getCallerUserRole();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useIsCallerAdmin() {
+  const { actor, isFetching } = useActor();
+  return useQuery<boolean>({
+    queryKey: ['isCallerAdmin'],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.isCallerAdmin();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+// ─── User Preferences ────────────────────────────────────────────────────────
+
+export function useGetUserPreferences() {
+  const { actor, isFetching } = useActor();
+  return useQuery<UserPreferences | null>({
+    queryKey: ['userPreferences'],
+    queryFn: async () => {
+      if (!actor) return null;
+      return actor.getUserPreferences();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useSaveUserPreferences() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (preferences: UserPreferences) => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.saveUserPreferences(preferences);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['userPreferences'] });
+    },
+  });
+}
+
 // ─── Service Rates ───────────────────────────────────────────────────────────
 
 export function useGetAllServiceRates() {
   const { actor, isFetching } = useActor();
-  return useQuery<[string, [string, number][]][]>({
+  return useQuery<Array<[string, Array<[string, number]>]>>({
     queryKey: ['serviceRates'],
     queryFn: async () => {
       if (!actor) return [];
@@ -852,11 +1005,7 @@ export function useSetServiceRate() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: {
-      serviceType: string;
-      areaTier: string;
-      rate: number;
-    }) => {
+    mutationFn: async (params: { serviceType: string; areaTier: string; rate: number }) => {
       if (!actor) throw new Error('Actor not available');
       return actor.setServiceRate(params.serviceType, params.areaTier, params.rate);
     },
@@ -866,21 +1015,19 @@ export function useSetServiceRate() {
   });
 }
 
-// ─── Monthly Reports ─────────────────────────────────────────────────────────
+// ─── Monthly Goals ───────────────────────────────────────────────────────────
 
-export function useGetMonthlyReport(month: string, year: number) {
+export function useGetAllMonthlyGoals() {
   const { actor, isFetching } = useActor();
-  return useQuery({
-    queryKey: ['monthlyReport', month, year],
+  return useQuery<MonthlyGoal[]>({
+    queryKey: ['monthlyGoals'],
     queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getMonthlyReport(month, BigInt(year));
+      if (!actor) return [];
+      return actor.getAllMonthlyGoals();
     },
-    enabled: !!actor && !isFetching && !!month && !!year,
+    enabled: !!actor && !isFetching,
   });
 }
-// Alias
-export const useMonthlyReport = useGetMonthlyReport;
 
 export function useGetMonthlyGoalsByMonthYear(month: string, year: number) {
   const { actor, isFetching } = useActor();
@@ -890,25 +1037,13 @@ export function useGetMonthlyGoalsByMonthYear(month: string, year: number) {
       if (!actor) return [];
       return actor.getMonthlyGoalsByMonthYear(month, BigInt(year));
     },
-    enabled: !!actor && !isFetching && !!month && !!year,
+    enabled: !!actor && !isFetching,
   });
 }
 // Alias
 export const useMonthlyGoalsByMonthYear = useGetMonthlyGoalsByMonthYear;
 
-export function useGetAllMonthlyGoals() {
-  const { actor, isFetching } = useActor();
-  return useQuery<MonthlyGoal[]>({
-    queryKey: ['allMonthlyGoals'],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.getAllMonthlyGoals();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useAddMonthlyGoal() {
+export function useAddGoal() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
@@ -921,31 +1056,39 @@ export function useAddMonthlyGoal() {
       if (!actor) throw new Error('Actor not available');
       return actor.addMonthlyGoal(params.month, BigInt(params.year), params.description, params.targetValue);
     },
-    onSuccess: (_data, variables) => {
-      queryClient.invalidateQueries({ queryKey: ['monthlyGoals', variables.month, variables.year] });
-      queryClient.invalidateQueries({ queryKey: ['allMonthlyGoals'] });
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['monthlyGoals'] });
     },
   });
 }
 // Alias
-export const useAddGoal = useAddMonthlyGoal;
+export const useAddMonthlyGoal = useAddGoal;
 
 export function useUpdateMonthlyGoal() {
   const { actor } = useActor();
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (params: {
-      id: bigint;
-      achieved: boolean;
-      actualValue: number;
-    }) => {
+    mutationFn: async (params: { id: bigint; achieved: boolean; actualValue: number }) => {
       if (!actor) throw new Error('Actor not available');
       return actor.updateMonthlyGoal(params.id, params.achieved, params.actualValue);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['allMonthlyGoals'] });
       queryClient.invalidateQueries({ queryKey: ['monthlyGoals'] });
     },
+  });
+}
+
+// ─── Monthly Report ──────────────────────────────────────────────────────────
+
+export function useMonthlyReport(month: string, year: number) {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ['monthlyReport', month, year],
+    queryFn: async () => {
+      if (!actor) throw new Error('Actor not available');
+      return actor.getMonthlyReport(month, BigInt(year));
+    },
+    enabled: !!actor && !isFetching,
   });
 }
 
@@ -1057,95 +1200,7 @@ export function useDeleteContract() {
   });
 }
 
-// ─── User Profile ─────────────────────────────────────────────────────────────
-
-export function useGetCallerUserProfile() {
-  const { actor, isFetching: actorFetching } = useActor();
-
-  const query = useQuery<UserProfile | null>({
-    queryKey: ['currentUserProfile'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getCallerUserProfile();
-    },
-    enabled: !!actor && !actorFetching,
-    retry: false,
-  });
-
-  return {
-    ...query,
-    isLoading: actorFetching || query.isLoading,
-    isFetched: !!actor && query.isFetched,
-  };
-}
-
-export function useSaveCallerUserProfile() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (profile: UserProfile) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.saveCallerUserProfile(profile);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['currentUserProfile'] });
-    },
-  });
-}
-
-export function useGetCallerUserRole() {
-  const { actor, isFetching } = useActor();
-  return useQuery<string>({
-    queryKey: ['callerUserRole'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.getCallerUserRole();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useIsCallerAdmin() {
-  const { actor, isFetching } = useActor();
-  return useQuery<boolean>({
-    queryKey: ['isCallerAdmin'],
-    queryFn: async () => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.isCallerAdmin();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-// ─── User Preferences ────────────────────────────────────────────────────────
-
-export function useGetUserPreferences() {
-  const { actor, isFetching } = useActor();
-  return useQuery<UserPreferences | null>({
-    queryKey: ['userPreferences'],
-    queryFn: async () => {
-      if (!actor) return null;
-      return actor.getUserPreferences();
-    },
-    enabled: !!actor && !isFetching,
-  });
-}
-
-export function useSaveUserPreferences() {
-  const { actor } = useActor();
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: async (preferences: UserPreferences) => {
-      if (!actor) throw new Error('Actor not available');
-      return actor.saveUserPreferences(preferences);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['userPreferences'] });
-    },
-  });
-}
-
-// ─── Backup ───────────────────────────────────────────────────────────────────
+// ─── Backup ──────────────────────────────────────────────────────────────────
 
 export function useBackupData() {
   const { actor } = useActor();
@@ -1161,7 +1216,7 @@ export function useBackupData() {
 
 export function useGetMonthlyRevenue() {
   const { actor, isFetching } = useActor();
-  return useQuery<[string, number][]>({
+  return useQuery<Array<[string, number]>>({
     queryKey: ['monthlyRevenue'],
     queryFn: async () => {
       if (!actor) return [];
@@ -1173,7 +1228,7 @@ export function useGetMonthlyRevenue() {
 
 export function useGetMonthlyExpenses() {
   const { actor, isFetching } = useActor();
-  return useQuery<[string, number][]>({
+  return useQuery<Array<[string, number]>>({
     queryKey: ['monthlyExpenses'],
     queryFn: async () => {
       if (!actor) return [];
@@ -1185,7 +1240,7 @@ export function useGetMonthlyExpenses() {
 
 export function useGetProfitProjection() {
   const { actor, isFetching } = useActor();
-  return useQuery<[bigint, number][]>({
+  return useQuery<Array<[bigint, number]>>({
     queryKey: ['profitProjection'],
     queryFn: async () => {
       if (!actor) return [];

@@ -30,6 +30,7 @@ export default function CreateFundDialog({ open, onOpenChange }: CreateFundDialo
   const [fundType, setFundType] = useState('main');
   const [spendingLimit, setSpendingLimit] = useState('100000');
   const [approvalThreshold, setApprovalThreshold] = useState('5000');
+  const [initialBalance, setInitialBalance] = useState('');
 
   const createFund = useCreateFund();
 
@@ -38,21 +39,36 @@ export default function CreateFundDialog({ open, onOpenChange }: CreateFundDialo
     const spendingLimitNum = parseFloat(spendingLimit);
     const approvalThresholdNum = parseFloat(approvalThreshold);
     if (isNaN(spendingLimitNum) || isNaN(approvalThresholdNum)) {
-      toast.error('Please enter valid numbers');
+      toast.error('Please enter valid numbers for spending limit and approval threshold');
       return;
     }
+
+    const initialBalanceNum = initialBalance.trim() !== '' ? parseFloat(initialBalance) : null;
+    if (initialBalanceNum !== null && (isNaN(initialBalanceNum) || initialBalanceNum < 0)) {
+      toast.error('Initial balance must be a positive number');
+      return;
+    }
+
     try {
       await createFund.mutateAsync({
         fundType,
         name,
         spendingLimit: spendingLimitNum,
         approvalThreshold: approvalThresholdNum,
+        initialBalance: initialBalanceNum,
       });
-      toast.success('Fund created successfully');
+
+      if (initialBalanceNum && initialBalanceNum > 0) {
+        toast.success(`Fund created with initial balance of €${initialBalanceNum.toLocaleString('en-IE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`);
+      } else {
+        toast.success('Fund created successfully');
+      }
+
       setName('');
       setFundType('main');
       setSpendingLimit('100000');
       setApprovalThreshold('5000');
+      setInitialBalance('');
       onOpenChange(false);
     } catch (err: any) {
       toast.error(err?.message ?? 'Failed to create fund');
@@ -89,6 +105,21 @@ export default function CreateFundDialog({ open, onOpenChange }: CreateFundDialo
                 <SelectItem value="investment">Investment</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="cfInitialBalance">
+              Initial Balance (€){' '}
+              <span className="text-muted-foreground font-normal text-xs">(optional)</span>
+            </Label>
+            <Input
+              id="cfInitialBalance"
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="0.00"
+              value={initialBalance}
+              onChange={(e) => setInitialBalance(e.target.value)}
+            />
           </div>
           <div className="space-y-2">
             <Label htmlFor="cfSpendingLimit">Spending Limit (€)</Label>

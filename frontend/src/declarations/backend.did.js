@@ -113,6 +113,12 @@ export const BackupData = IDL.Record({
   'invoices' : IDL.Vec(Invoice),
   'quotes' : IDL.Vec(Quote),
 });
+export const FundType = IDL.Variant({
+  'main' : IDL.Null,
+  'investment' : IDL.Null,
+  'maintenance' : IDL.Null,
+  'salaries' : IDL.Null,
+});
 export const MonthlyGoal = IDL.Record({
   'id' : IDL.Nat,
   'month' : IDL.Text,
@@ -141,12 +147,6 @@ export const JobRevenueEntry = IDL.Record({
   'date' : IDL.Int,
   'jobId' : IDL.Nat,
   'sector' : IDL.Text,
-});
-export const FundType = IDL.Variant({
-  'main' : IDL.Null,
-  'investment' : IDL.Null,
-  'maintenance' : IDL.Null,
-  'salaries' : IDL.Null,
 });
 export const MaintenanceFundLedger = IDL.Record({
   'id' : IDL.Nat,
@@ -305,6 +305,11 @@ export const DroneWashDashboard = IDL.Service({
         IDL.Int,
         IDL.Opt(IDL.Int),
       ],
+      [IDL.Nat],
+      [],
+    ),
+  'createFundWithInitialBalance' : IDL.Func(
+      [FundType, IDL.Text, IDL.Float64, IDL.Float64, IDL.Opt(IDL.Float64)],
       [IDL.Nat],
       [],
     ),
@@ -585,6 +590,12 @@ export const idlFactory = ({ IDL }) => {
     'invoices' : IDL.Vec(Invoice),
     'quotes' : IDL.Vec(Quote),
   });
+  const FundType = IDL.Variant({
+    'main' : IDL.Null,
+    'investment' : IDL.Null,
+    'maintenance' : IDL.Null,
+    'salaries' : IDL.Null,
+  });
   const MonthlyGoal = IDL.Record({
     'id' : IDL.Nat,
     'month' : IDL.Text,
@@ -613,12 +624,6 @@ export const idlFactory = ({ IDL }) => {
     'date' : IDL.Int,
     'jobId' : IDL.Nat,
     'sector' : IDL.Text,
-  });
-  const FundType = IDL.Variant({
-    'main' : IDL.Null,
-    'investment' : IDL.Null,
-    'maintenance' : IDL.Null,
-    'salaries' : IDL.Null,
   });
   const MaintenanceFundLedger = IDL.Record({
     'id' : IDL.Nat,
@@ -781,6 +786,11 @@ export const idlFactory = ({ IDL }) => {
           IDL.Int,
           IDL.Opt(IDL.Int),
         ],
+        [IDL.Nat],
+        [],
+      ),
+    'createFundWithInitialBalance' : IDL.Func(
+        [FundType, IDL.Text, IDL.Float64, IDL.Float64, IDL.Opt(IDL.Float64)],
         [IDL.Nat],
         [],
       ),

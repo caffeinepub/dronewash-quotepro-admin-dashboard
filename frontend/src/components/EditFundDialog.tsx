@@ -52,10 +52,11 @@ export default function EditFundDialog({ open, onOpenChange, fund }: EditFundDia
     try {
       await updateFund.mutateAsync({
         id: fund.id,
+        fundType: fund.fundType,
         name,
         spendingLimit: parsedSpendingLimit,
         approvalThreshold: parsedApprovalThreshold,
-        isActive: fund.isActive, // pass through the existing isActive value
+        isActive: fund.isActive,
       });
       toast.success('Fund updated successfully.');
       onOpenChange(false);

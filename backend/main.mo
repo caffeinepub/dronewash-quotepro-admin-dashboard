@@ -11,12 +11,9 @@ import Int "mo:base/Int";
 import List "mo:base/List";
 
 import AccessControl "authorization/access-control";
-
 import MixinStorage "blob-storage/Mixin";
 import Storage "blob-storage/Storage";
 
-import Migration "migration";
-(with migration = Migration.run)
 persistent actor class DroneWashDashboard() {
   public type CustomerInfo = {
     name : Text;
@@ -627,6 +624,52 @@ persistent actor class DroneWashDashboard() {
     };
     maintenanceFundLedger := natMap.put(maintenanceFundLedger, ledgerId, ledgerEntry);
     nextId += 1;
+  };
+
+  public shared ({ caller }) func createFundWithInitialBalance(fundType : FundType, name : Text, spendingLimit : Float, approvalThreshold : Float, initialBalance : ?Float) : async Nat {
+    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
+      Debug.trap("Unauthorized: Only admins can create funds");
+    };
+
+    let id = nextId;
+    let fund : Fund = {
+      id;
+      fundType;
+      name;
+      createdDate = Time.now();
+      lastUpdated = Time.now();
+      isActive = true;
+      spendingLimit;
+      approvalThreshold;
+    };
+    funds := natMap.put(funds, id, fund);
+    nextId += 1;
+
+    switch (initialBalance) {
+      case (?balance) {
+        if (balance > 0.0) {
+          let transactionId = nextId;
+          let initialTransaction : FundTransaction = {
+            id = transactionId;
+            fundId = id;
+            amount = balance;
+            transactionType = "inflow";
+            date = Time.now();
+            description = "Initial balance";
+            category = "initial balance";
+            remainingBalance = balance;
+            relatedExpenseId = null;
+            relatedJobId = null;
+            fundType;
+          };
+          fundTransactions := natMap.put(fundTransactions, transactionId, initialTransaction);
+          nextId += 1;
+        };
+      };
+      case null {};
+    };
+
+    id;
   };
 
   public shared ({ caller }) func addMaintenanceFundInflow(amount : Float, description : Text) : async Nat {

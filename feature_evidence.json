@@ -2,11 +2,10 @@
   "kind": "feature_evidence_report",
   "features": [
     {
-      "featureId": "feature-identify-and-eliminate-duplicate-or-conflicting-data-sources-for-the-maintenance-fund-balance-the-dashboard-s-financialmetrics-component-showing-72-200-and-the-maintenancemanagement-component-must-both-read-from-the-exact-same-backend-data-source-the-maintenance-fund-s-computed-balance-derived-from-its-transaction-history-so-both-views-always-show-identical-consistent-values",
-      "featureTitle": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
+      "featureId": "feature-add-an-optional-initial-balance-numeric-input-field-to-the-createfunddialog-form-allowing-users-to-specify-a-custom-starting-amount-when-creating-a-new-fund",
+      "featureTitle": "Add an optional 'Initial Balance' numeric input field to the CreateFundDialog form, allowing users to specify a custom starting amount when creating a new fund.",
       "files": [
-        "frontend/src/components/FinancialMetrics.tsx",
-        "frontend/src/hooks/useQueries.ts"
+        "frontend/src/components/CreateFundDialog.tsx"
       ],
       "components": [
         "authorization@1.0.1",
@@ -23,10 +22,9 @@
       "confidence": "high"
     },
     {
-      "featureId": "feature-ensure-the-react-query-cache-keys-used-by-the-dashboard-financialmetrics-and-kpiwidgets-components-and-the-maintenance-section-maintenancemanagement-component-for-the-maintenance-fund-balance-either-share-the-same-query-key-or-are-properly-invalidated-together-when-any-maintenance-fund-mutation-add-inflow-add-expense-reset-occurs",
-      "featureTitle": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+      "featureId": "feature-update-the-usecreatefund-mutation-hook-in-usequeries-ts-to-pass-the-optional-initialbalance-value-from-the-dialog-form-to-the-backend-createfund-call",
+      "featureTitle": "Update the useCreateFund mutation hook in useQueries.ts to pass the optional initialBalance value from the dialog form to the backend createFund call.",
       "files": [
-        "frontend/src/components/FinancialMetrics.tsx",
         "frontend/src/hooks/useQueries.ts"
       ],
       "components": [

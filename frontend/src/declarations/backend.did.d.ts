@@ -95,6 +95,10 @@ export interface DroneWashDashboard {
     ],
     bigint
   >,
+  'createFundWithInitialBalance' : ActorMethod<
+    [FundType, string, number, number, [] | [number]],
+    bigint
+  >,
   'createInvoice' : ActorMethod<[string, string, bigint, number], bigint>,
   'createQuote' : ActorMethod<
     [

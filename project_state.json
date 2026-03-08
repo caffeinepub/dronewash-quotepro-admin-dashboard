@@ -1,24 +1,22 @@
 {
   "schemaVersion": "1.0.0",
   "projectStateVersion": 3,
-  "summary": "Financial management app with multiple fund tracking (Maintenance Fund, Investment Fund, Main Fund). Currently troubleshooting fund synchronization issues between the Maintenance section and the Dashboard display.",
+  "summary": "New project",
   "architectural_notes": [],
-  "known_issues": [
-    "Fund balance shown on Dashboard (€72,000) does not synchronize with the Maintenance Fund section — possible duplicate data sources or state not shared globally"
-  ],
-  "isFixRequest": true,
+  "known_issues": [],
+  "isFixRequest": false,
   "existing_features": [
     {
-      "id": "feature-identify-and-eliminate-duplicate-or-conflicting-data-sources-for-the-maintenance-fund-balance-the-dashboard-s-financialmetrics-component-showing-72-200-and-the-maintenancemanagement-component-must-both-read-from-the-exact-same-backend-data-source-the-maintenance-fund-s-computed-balance-derived-from-its-transaction-history-so-both-views-always-show-identical-consistent-values",
-      "title": "Identify and eliminate duplicate or conflicting data sources for the Maintenance Fund balance. The Dashboard's FinancialMetrics component (showing €72,200) and the MaintenanceManagement component must both read from the exact same backend data source — the maintenance fund's computed balance derived from its transaction history — so both views always show identical, consistent values.",
+      "id": "feature-add-an-optional-initial-balance-numeric-input-field-to-the-createfunddialog-form-allowing-users-to-specify-a-custom-starting-amount-when-creating-a-new-fund",
+      "title": "Add an optional 'Initial Balance' numeric input field to the CreateFundDialog form, allowing users to specify a custom starting amount when creating a new fund.",
       "reqIds": [
         "REQ-1"
       ],
       "version": 1
     },
     {
-      "id": "feature-ensure-the-react-query-cache-keys-used-by-the-dashboard-financialmetrics-and-kpiwidgets-components-and-the-maintenance-section-maintenancemanagement-component-for-the-maintenance-fund-balance-either-share-the-same-query-key-or-are-properly-invalidated-together-when-any-maintenance-fund-mutation-add-inflow-add-expense-reset-occurs",
-      "title": "Ensure the React Query cache keys used by the Dashboard (FinancialMetrics and KPIWidgets components) and the Maintenance section (MaintenanceManagement component) for the Maintenance Fund balance either share the same query key or are properly invalidated together when any maintenance fund mutation (add inflow, add expense, reset) occurs.",
+      "id": "feature-update-the-usecreatefund-mutation-hook-in-usequeries-ts-to-pass-the-optional-initialbalance-value-from-the-dialog-form-to-the-backend-createfund-call",
+      "title": "Update the useCreateFund mutation hook in useQueries.ts to pass the optional initialBalance value from the dialog form to the backend createFund call.",
       "reqIds": [
         "REQ-3"
       ],
@@ -27,16 +25,21 @@
   ],
   "new_feature_requests": [
     {
-      "id": "AR-2",
-      "summary": "Audit the backend Motoko actor to ensure the Maintenance Fund balance is computed from a single authoritative source (e.g., sum of inflow transactions minus outflow/expense transactions). Remove any separate balance variable that is updated independently and can diverge from the transaction-based calculation.",
+      "id": "AR-1",
+      "summary": "Add custom amount to newly created funds",
+      "reqIds": [],
+      "status": "pending"
+    },
+    {
+      "id": "AR-3",
+      "summary": "Update the backend createFund handler (or equivalent fund creation logic in main.mo) to accept an optional initial balance parameter. If provided and greater than zero, automatically record an initial inflow transaction against the newly created fund so the balance reflects the custom amount.",
       "reqIds": [
         "REQ-2"
       ],
       "status": "pending"
     }
   ],
-  "gameProjectType": "none",
-  "projectName": "Fix Maintenance Fund balance desynchronization between Dashboard and Maintenance section",
+  "projectName": "DroneWash Dashboard",
   "clarification_mode": "instant",
   "clarification_rounds": 0
 }

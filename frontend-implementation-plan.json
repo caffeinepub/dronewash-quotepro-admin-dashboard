@@ -1,63 +1,38 @@
 {
   "kind": "implementation_plan",
   "version": "1.0",
-  "title": "Fix Maintenance Fund balance desynchronization between Dashboard and Maintenance section",
+  "title": "Add custom initial balance to newly created funds",
   "requirements": [
     {
       "id": "REQ-1",
-      "summary": "Eliminate duplicate or conflicting data sources for the Maintenance Fund balance so Dashboard FinancialMetrics and MaintenanceManagement always show identical values from the same backend source",
+      "summary": "Add an optional 'Initial Balance' numeric input field to the CreateFundDialog form",
       "acceptanceCriteria": [
-        "The Maintenance Fund balance shown on the Dashboard (FinancialMetrics/Financial Overview card) always matches exactly the balance shown in the Maintenance section (MaintenanceManagement component).",
-        "There is only one canonical source of truth for the Maintenance Fund balance — the backend actor's maintenance fund state or transaction-derived calculation.",
-        "No hardcoded or stale fallback values (e.g., 72,000 or 72,200) remain in any frontend component or hook for the Maintenance Fund balance.",
-        "After adding an inflow or expense in the Maintenance section, the Dashboard card also reflects the updated balance without requiring a full page reload."
+        "The CreateFundDialog form includes an optional 'Initial Balance' field (numeric input, defaulting to 0).",
+        "The field accepts positive numeric values including decimals.",
+        "If left empty or set to 0, fund creation behaves as before with no initial transaction.",
+        "The field is clearly labeled and placed logically within the form (e.g., after the fund name)."
       ],
       "file_operations": [
         {
-          "path": "frontend/src/components/FinancialMetrics.tsx",
+          "path": "frontend/src/components/CreateFundDialog.tsx",
           "operation": "modify",
-          "description": "Audit the FinancialMetrics component to ensure it fetches the Maintenance Fund balance via getMaintenanceFundBalance() (or from the fund balances array in getFinancialMetricsDetailed()) and does not use any hardcoded or fallback values like 72,000 or 72,200. Ensure the component uses the same React Query key as MaintenanceManagement for consistency. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/MaintenanceManagement.tsx",
-          "operation": "modify",
-          "description": "Confirm that MaintenanceManagement fetches the Maintenance Fund balance from the same backend query (getMaintenanceFundBalance() or getFinancialMetricsDetailed()) without any local overrides or fallback values. Ensure all mutations (add inflow, add expense, reset) invalidate the shared query key so the Dashboard updates automatically. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/hooks/useQueries.ts",
-          "operation": "modify",
-          "description": "Review all query and mutation hooks related to the Maintenance Fund (useGetMaintenanceFundBalance, useAddMaintenanceFundInflow, useAddMaintenanceExpense, useResetMaintenanceFund, useGetFinancialMetricsDetailed) to ensure they use consistent query keys (e.g., ['maintenanceFundBalance'] or a shared key) and that all mutations call queryClient.invalidateQueries() for those keys to trigger refetch across both Dashboard and Maintenance components. Remove any stale or duplicate query keys. Verify the component's usage instructions before implementing."
+          "description": "Add an optional numeric 'Initial Balance' input field to the CreateFundDialog form using a shadcn/ui Input component. Place it after the fund name field and before the spending limit. Add form state to track the initialBalance value (defaulting to 0 or empty). Include validation to ensure only positive numeric values (including decimals) are accepted. Pass the initialBalance value to the useCreateFund mutation when the form is submitted."
         }
       ]
     },
     {
       "id": "REQ-3",
-      "summary": "Ensure React Query cache keys for Maintenance Fund balance are consistent and properly invalidated across Dashboard and Maintenance components",
+      "summary": "Update the useCreateFund mutation hook to pass the optional initialBalance value to the backend",
       "acceptanceCriteria": [
-        "Mutations in MaintenanceManagement (add inflow, add expense, reset) invalidate all related Dashboard query keys so the Dashboard card updates automatically.",
-        "The Dashboard Maintenance Fund card does not show a stale cached value after a transaction is recorded in the Maintenance section.",
-        "Both components call the same backend query endpoint for the Maintenance Fund balance."
+        "The useCreateFund mutation accepts and forwards an initialBalance parameter to the backend.",
+        "After a successful fund creation with an initial balance, the funds list and balances are re-fetched and reflect the new amount.",
+        "A success toast or confirmation is shown after fund creation with the initial balance."
       ],
       "file_operations": [
         {
           "path": "frontend/src/hooks/useQueries.ts",
           "operation": "modify",
-          "description": "Standardize the query key used by useGetMaintenanceFundBalance and any related queries (e.g., useGetFinancialMetricsDetailed) to a single consistent key like ['maintenanceFundBalance']. Update all mutation hooks (useAddMaintenanceFundInflow, useAddMaintenanceExpense, useResetMaintenanceFund, and potentially useAddJob if it affects the maintenance fund) to invalidate this shared key plus any other relevant keys (e.g., ['financialMetricsDetailed']) in their onSuccess callbacks. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/FinancialMetrics.tsx",
-          "operation": "modify",
-          "description": "Update FinancialMetrics to use the standardized query key for the Maintenance Fund balance (e.g., ['maintenanceFundBalance']) so it receives automatic cache updates when mutations occur in MaintenanceManagement. Ensure no local state or fallback logic overrides the fetched balance. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/MaintenanceManagement.tsx",
-          "operation": "modify",
-          "description": "Confirm MaintenanceManagement uses the same standardized query key for the Maintenance Fund balance and that all mutations it triggers invalidate both the maintenance query key and any Dashboard-related keys (e.g., ['financialMetricsDetailed']) to ensure synchronization. Verify the component's usage instructions before implementing."
-        },
-        {
-          "path": "frontend/src/components/KPIWidgets.tsx",
-          "operation": "modify",
-          "description": "Review the Fund Balance Delta KPI widget to ensure it also uses the standardized query key for the Maintenance Fund balance and receives automatic updates when mutations occur. Remove any hardcoded or fallback values. Verify the component's usage instructions before implementing."
+          "description": "Update the useCreateFund mutation hook to accept an optional initialBalance parameter (number | null) in its mutation variables. Pass this parameter to the backend actor.createFundWithInitialBalance() call. Ensure the mutation onSuccess callback invalidates the relevant queries ('funds', 'financialMetrics', 'financialMetricsDetailed') to trigger a re-fetch of fund balances. Update the success toast message to indicate when a fund is created with an initial balance."
         }
       ]
     }

@@ -76,6 +76,7 @@ export interface DroneWashDashboardInterface {
     assignCallerUserRole(user: Principal, role: UserRole): Promise<void>;
     backupData(): Promise<BackupData>;
     createContract(contractName: string, clientName: string, clientEmail: string, clientPhone: string, clientCompany: string, servicesCovered: Array<string>, areaTier: string, agreedPrices: Array<[string, number]>, contractStatus: string, startDate: bigint, endDate: bigint | null): Promise<bigint>;
+    createFundWithInitialBalance(fundType: FundType, name: string, spendingLimit: number, approvalThreshold: number, initialBalance: number | null): Promise<bigint>;
     createInvoice(customerName: string, customerEmail: string, quoteId: bigint, totalAmount: number): Promise<bigint>;
     createQuote(sector: string, services: Array<Service>, basePrice: number, addOns: Array<string>, volumeDiscount: number, nightService: boolean, finalPrice: number, town: string, subSector: string | null, customerInfo: CustomerInfo, chargeDescription: string, vatAmount: number, grandTotal: number): Promise<bigint>;
     deleteContract(id: bigint): Promise<void>;
